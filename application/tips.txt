@@ -1,0 +1,6 @@
+Change screen resolution:
+
+set in /boot/config.txt:
+
+framebuffer_width=320
+framebuffer_height=240
