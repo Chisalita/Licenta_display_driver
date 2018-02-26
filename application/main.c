@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <pigpio.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdbool.h>
+
+#include <unistd.h>
+#include <sys/time.h>
+
 #include "registers.h"
 
 #define delay(t) usleep((t)*1000)
@@ -57,6 +63,7 @@ void write8(uint8_t value)
   //  printf("clear = 0x%X\n", (data ^ mask));
   gpioWrite_Bits_0_31_Set(data);
   gpioWrite_Bits_0_31_Clear(data ^ mask);
+  //TODO: see if strobe should be on the extremity (before and after)
   WR_STROBE;
 }
 
@@ -96,6 +103,8 @@ void flood(uint16_t color, uint32_t len);
 void fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h, uint16_t fillcolor);
 void setLR(void);
 void drawBorder();
+uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
+void pushColors(uint16_t *data, /*uint8_t*/ int len, bool first);
 
 void writeRegister32(uint8_t r, uint32_t d)
 {
@@ -185,6 +194,7 @@ int main()
   printf("setAddr\n");
   // int i=0;
 
+  drawBorder();
   for (i = 0; i < 150; i++)
   {
     drawPixel(i, i, BLACK);
@@ -194,7 +204,33 @@ int main()
 
   fillRect(50, 50, 50, 50, YELLOW);
 
-  //drawBorder();
+  //See how much time it takes to fill the screen
+  uint16_t data[320 * 240];
+  uint8_t color = GREEN;
+  //uint16_t data[200];
+  for (i = 0; i < 500; i++)
+  {
+    color ^= BLUE;
+    memset(data, color, sizeof(data));
+    setAddrWindow(0, 0, TFTWIDTH - 1, TFTHEIGHT - 1);
+
+    struct timeval start, end;
+
+    long mtime, seconds, useconds;
+
+    gettimeofday(&start, NULL);
+
+    pushColors(data, sizeof(data) / 2, true);
+
+    gettimeofday(&end, NULL);
+
+    seconds = end.tv_sec - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+
+    mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
+
+    printf("Elapsed time: %ld milliseconds\n", mtime);
+  }
 
   while (1)
   {
@@ -385,4 +421,36 @@ void drawBorder()
 
   fillScreen(RED);
   fillRect(border, border, (width - border * 2), (height - border * 2), BLUE);
+}
+
+// Pass 8-bit (each) R,G,B, get back 16-bit packed color
+uint16_t color565(uint8_t r, uint8_t g, uint8_t b)
+{
+  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+}
+
+// Issues 'raw' an array of 16-bit color values to the LCD; used
+// externally by BMP examples.  Assumes that setWindowAddr() has
+// previously been set to define the bounds.  Max 255 pixels at
+// a time (BMP examples read in small chunks due to limited RAM).
+void pushColors(uint16_t *data, /*uint8_t*/ int len, bool first)
+{
+  uint16_t color;
+  uint8_t hi, lo;
+  CS_ACTIVE;
+  if (first == true)
+  { // Issue GRAM write command only on first call
+    CD_COMMAND;
+    write8(0x2C);
+  }
+  CD_DATA;
+  while (len--)
+  {
+    color = *data++;
+    hi = color >> 8; // Don't simplify or merge these
+    lo = color;      // lines, there's macro shenanigans
+    write8(hi);      // going on.
+    write8(lo);
+  }
+  CS_IDLE;
 }

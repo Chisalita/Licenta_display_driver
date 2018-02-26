@@ -1,6 +1,11 @@
-Change screen resolution:
+*Change screen resolution:
 
 set in /boot/config.txt:
 
 framebuffer_width=320
 framebuffer_height=240
+
+
+*Read all gpios from command line:
+
+gpio allreadall
