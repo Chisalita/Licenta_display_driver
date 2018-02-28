@@ -140,6 +140,28 @@ void setAddrWindow(int x1, int y1, int x2, int y2)
   CS_IDLE;
 }
 
+
+void writeNoParamCommand(uint8_t value){
+  CS_ACTIVE;
+  CD_COMMAND;
+  write8(value);
+  CS_IDLE;
+}
+
+void displayOff(){
+  CS_ACTIVE;
+  CD_COMMAND;
+  write8(ILI9341_DISPLAYOFF);
+  CS_IDLE;
+}
+
+void displayOn(){
+  CS_ACTIVE;
+  CD_COMMAND;
+  write8(ILI9341_DISPLAYON);
+  CS_IDLE;
+}
+
 int main()
 {
 
@@ -170,22 +192,25 @@ int main()
   // uint16_t a, d;
   CS_ACTIVE;
   writeRegister8(ILI9341_SOFTRESET, 0);
+  // writeNoParamCommand(ILI9341_SOFTRESET);
   delay(50);
-  writeRegister8(ILI9341_DISPLAYOFF, 0);
+  //writeRegister8(ILI9341_DISPLAYOFF, 0);
+  // writeNoParamCommand(ILI9341_DISPLAYOFF);
 
   writeRegister8(ILI9341_POWERCONTROL1, 0x23);
   writeRegister8(ILI9341_POWERCONTROL2, 0x10);
   writeRegister16(ILI9341_VCOMCONTROL1, 0x2B2B);
   writeRegister8(ILI9341_VCOMCONTROL2, 0xC0);
-  writeRegister8(ILI9341_MEMCONTROL, ILI9341_MADCTL_MY | ILI9341_MADCTL_BGR);
+  writeRegister8(ILI9341_MEMCONTROL, /*ILI9341_MADCTL_MY |*/ ILI9341_MADCTL_BGR);
   writeRegister8(ILI9341_PIXELFORMAT, 0x55);
   writeRegister16(ILI9341_FRAMECONTROL, 0x001B);
 
   writeRegister8(ILI9341_ENTRYMODE, 0x07);
-  writeRegister8(ILI9341_SLEEPOUT, 0);
+  // writeRegister8(ILI9341_SLEEPOUT, 0);
+writeNoParamCommand(ILI9341_SLEEPOUT);
   delay(150);
-  writeRegister8(ILI9341_DISPLAYON, 0);
-
+  // writeRegister8(ILI9341_DISPLAYON, 0);
+writeNoParamCommand(ILI9341_DISPLAYON);
   //init();
   delay(500);
   setAddrWindow(0, 0, TFTWIDTH - 1, TFTHEIGHT - 1);
@@ -220,10 +245,14 @@ int main()
 
     gettimeofday(&start, NULL);
 
-    pushColors(data, sizeof(data) / 2, true);
+    //pushColors(data, sizeof(data) / 2, true);
+displayOff();
+    fillRect(0, 0, TFTWIDTH, TFTHEIGHT, color);
+    //writeRegister8(ILI9341_DISPLAYON, 0);
 
+    displayOn();
+    usleep(1E6);
     gettimeofday(&end, NULL);
-
     seconds = end.tv_sec - start.tv_sec;
     useconds = end.tv_usec - start.tv_usec;
 
