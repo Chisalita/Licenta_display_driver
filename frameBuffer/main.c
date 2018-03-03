@@ -129,10 +129,10 @@ int main(int argc, char *argv[])
 
     uint8_t *fbp = memp;
     memp = NULL;
-    
+
     int line_size = vinfo.xres * vinfo.bits_per_pixel / 8;
-	int buffer_size = line_size * vinfo.yres;
-/*
+    int buffer_size = line_size * vinfo.yres;
+    /*
     for(int i=0; i<buffer_size; i++){
         *(fbp+i) = i%236;
     }
@@ -140,19 +140,42 @@ int main(int argc, char *argv[])
 
     char *outfile = "out";
 
-    int outfd = creat(outfile, S_IRUSR|S_IWUSR | S_IRGRP|S_IWGRP | S_IROTH|S_IWOTH);
+    int outfd;
 
-    if (outfd == -1)
+    int wr = 1;
+    if (wr)
     {
-        fprintf(stderr,
-                "%s: cannot open outputfile - %s",
-                program,
-                strerror(errno));
-        exit(EXIT_FAILURE);
+
+        outfd = creat(outfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
+        if (outfd == -1)
+        {
+            fprintf(stderr,
+                    "%s: cannot open outputfile - %s",
+                    program,
+                    strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        write(outfd, fbp /*+ (vinfo.yoffset * line_size)*/, buffer_size);
     }
+    else
+    {
+        outfile = "tmp";
+        outfd = open(outfile, O_RDWR);
 
+        if (outfd == -1)
+        {
+            fprintf(stderr,
+                    "%s: cannot open outfd - %s",
+                    program,
+                    strerror(errno));
+            exit(EXIT_FAILURE);
+        }
 
-    write(outfd, fbp + (vinfo.yoffset * line_size), buffer_size);
+        int r = read(outfd, fbp /* + (vinfo.yoffset * line_size)*/, buffer_size);
+        printf("read %d bytes\n", r);
+    }
 
     close(outfd);
 
@@ -162,3 +185,15 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+/*
+// Pass 8-bit (each) R,G,B, get back 16-bit packed color
+uint16_t color565(uint32_t value, struct fb_var_screeninfo *info)
+{
+
+    uint8_t r = value & (0xFF << (32 - info->red.offset - info->red.length)); //0xff is not generic...
+    uint8_t g = value & (0xFF << (32 - info->green.offset - info->green.length));
+    uint8_t b = value & (0xFF << (32 - info->blue.offset - info->blue.length));
+
+    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+}*/
