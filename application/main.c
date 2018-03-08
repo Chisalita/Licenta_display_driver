@@ -25,11 +25,13 @@
 #define TFTWIDTH 240
 #define TFTHEIGHT 320
 
-#define RESET_PIN (26)
+#define RESET_PIN (13)//(26)
 #define RD_PIN (19)
 #define WR_PIN (2)
 #define CD_PIN (06)
 #define CS_PIN (05)
+
+#define DATA_PINS_OFFSET (20)
 
 // These are single-instruction operations and always inline
 #define RD_ACTIVE gpioWrite(RD_PIN, 0)
@@ -50,15 +52,16 @@
 
 /*
  #define write8inline(d) { \
-   (d & 0xff)<<10
+   (d & 0xff)<<DATA_PINS_OFFSET
    WR_STROBE; }
 */
 
 void write8(uint8_t value)
 {
 
-  uint32_t mask = 0x3FC00; //for bits 10 to 17
-  uint32_t data = ((uint32_t)value) << 10;
+  //TODO: make generic the mask
+  uint32_t mask = 0xFF00000;//0x3FC00; //for bits DATA_PINS_OFFSET to DATA_PINS_OFFSET+7
+  uint32_t data = ((uint32_t)value) << DATA_PINS_OFFSET;
   //  printf("set = 0x%X\n", data);
   //  printf("clear = 0x%X\n", (data ^ mask));
   gpioWrite_Bits_0_31_Set(data);
@@ -140,22 +143,24 @@ void setAddrWindow(int x1, int y1, int x2, int y2)
   CS_IDLE;
 }
 
-
-void writeNoParamCommand(uint8_t value){
+void writeNoParamCommand(uint8_t value)
+{
   CS_ACTIVE;
   CD_COMMAND;
   write8(value);
   CS_IDLE;
 }
 
-void displayOff(){
+void displayOff()
+{
   CS_ACTIVE;
   CD_COMMAND;
   write8(ILI9341_DISPLAYOFF);
   CS_IDLE;
 }
 
-void displayOn(){
+void displayOn()
+{
   CS_ACTIVE;
   CD_COMMAND;
   write8(ILI9341_DISPLAYON);
@@ -177,8 +182,8 @@ int main()
   gpioSetMode(CD_PIN, PI_OUTPUT);
   gpioSetMode(CS_PIN, PI_OUTPUT);
   //set data to output
-  int i = 10;
-  for (; i < 18; ++i)
+  int i = DATA_PINS_OFFSET;
+  for (; i < DATA_PINS_OFFSET+8; ++i)
   {
     gpioSetMode(i, PI_OUTPUT);
   }
@@ -207,10 +212,10 @@ int main()
 
   writeRegister8(ILI9341_ENTRYMODE, 0x07);
   // writeRegister8(ILI9341_SLEEPOUT, 0);
-writeNoParamCommand(ILI9341_SLEEPOUT);
+  writeNoParamCommand(ILI9341_SLEEPOUT);
   delay(150);
   // writeRegister8(ILI9341_DISPLAYON, 0);
-writeNoParamCommand(ILI9341_DISPLAYON);
+  writeNoParamCommand(ILI9341_DISPLAYON);
   //init();
   delay(500);
   setAddrWindow(0, 0, TFTWIDTH - 1, TFTHEIGHT - 1);
@@ -246,12 +251,12 @@ writeNoParamCommand(ILI9341_DISPLAYON);
     gettimeofday(&start, NULL);
 
     //pushColors(data, sizeof(data) / 2, true);
-displayOff();
+    // displayOff();
     fillRect(0, 0, TFTWIDTH, TFTHEIGHT, color);
     //writeRegister8(ILI9341_DISPLAYON, 0);
 
-    displayOn();
-    usleep(1E6);
+    // displayOn();
+    //usleep(1E6);
     gettimeofday(&end, NULL);
     seconds = end.tv_sec - start.tv_sec;
     useconds = end.tv_usec - start.tv_usec;

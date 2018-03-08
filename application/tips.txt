@@ -1,3 +1,13 @@
+==========IMPORTANT===============
+
+Pinul LCD_RD de la display trebuie neaparat conectat la RPI (pe Arduino la A0)!!!!
+Asta ca sa mearga touchscreen-ul, altfel valorile sunt gresite
+
+==========IMPORTANT===============
+
+
+
+
 *Change screen resolution:
 
 set in /boot/config.txt:
