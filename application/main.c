@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include <unistd.h>
 #include <sys/time.h>
@@ -22,10 +24,32 @@
 #define YELLOW 0xFFE0
 #define WHITE 0xFFFF
 
-#define TFTWIDTH 240
-#define TFTHEIGHT 320
+#define TFT_WIDTH 240
+#define TFT_HEIGHT 320
 
-#define RESET_PIN (13)//(26)
+////////////TOUCH//////////
+#define REFERENCE_VOLTAGE (3.3f)
+#define NUMSAMPLES (1)
+#define pinMode(p, m) gpioSetMode(p, m)
+#define INPUT (PI_INPUT)
+#define OUTPUT (PI_OUTPUT)
+#define HIGH (PI_HIGH)
+#define LOW (PI_LOW)
+#define digitalWrite(p, l) gpioWrite(p, l)
+
+#define _yp (2)
+#define _xm (6)
+#define _ym (27)
+#define _xp (26)
+
+// Calibrate values
+#define TS_MINX 75  //125
+#define TS_MINY 280 //85
+#define TS_MAXX 650 //965
+#define TS_MAXY 935 //905
+////////////TOUCH//////////
+
+#define RESET_PIN (13) //(26)
 #define RD_PIN (19)
 #define WR_PIN (2)
 #define CD_PIN (06)
@@ -60,7 +84,7 @@ void write8(uint8_t value)
 {
 
   //TODO: make generic the mask
-  uint32_t mask = 0xFF00000;//0x3FC00; //for bits DATA_PINS_OFFSET to DATA_PINS_OFFSET+7
+  uint32_t mask = 0xFF00000; //0x3FC00; //for bits DATA_PINS_OFFSET to DATA_PINS_OFFSET+7
   uint32_t data = ((uint32_t)value) << DATA_PINS_OFFSET;
   //  printf("set = 0x%X\n", data);
   //  printf("clear = 0x%X\n", (data ^ mask));
@@ -97,6 +121,8 @@ void write8(uint8_t value)
   }
 
 int _reset = RESET_PIN;
+int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
+int handle;       //make it local!!!
 
 void drawPixel(int16_t x, int16_t y, uint16_t color);
 void writeRegister32(uint8_t r, uint32_t d);
@@ -108,6 +134,10 @@ void setLR(void);
 void drawBorder();
 uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 void pushColors(uint16_t *data, /*uint8_t*/ int len, bool first);
+
+int readChannel(uint8_t channel);
+void getPoint(void);
+long map(long x, long in_min, long in_max, long out_min, long out_max);
 
 void writeRegister32(uint8_t r, uint32_t d)
 {
@@ -183,7 +213,7 @@ int main()
   gpioSetMode(CS_PIN, PI_OUTPUT);
   //set data to output
   int i = DATA_PINS_OFFSET;
-  for (; i < DATA_PINS_OFFSET+8; ++i)
+  for (; i < DATA_PINS_OFFSET + 8; ++i)
   {
     gpioSetMode(i, PI_OUTPUT);
   }
@@ -218,7 +248,7 @@ int main()
   writeNoParamCommand(ILI9341_DISPLAYON);
   //init();
   delay(500);
-  setAddrWindow(0, 0, TFTWIDTH - 1, TFTHEIGHT - 1);
+  setAddrWindow(0, 0, TFT_WIDTH - 1, TFT_HEIGHT - 1);
   CS_IDLE;
 
   printf("setAddr\n");
@@ -232,17 +262,17 @@ int main()
 
   printf("pixels\n");
 
-  fillRect(50, 50, 50, 50, YELLOW);
+  fillRect(50, 50, 50, 50, GREEN);
 
   //See how much time it takes to fill the screen
   uint16_t data[320 * 240];
   uint8_t color = GREEN;
   //uint16_t data[200];
-  for (i = 0; i < 500; i++)
+  /* for (i = 0; i < 500; i++)
   {
     color ^= BLUE;
     memset(data, color, sizeof(data));
-    setAddrWindow(0, 0, TFTWIDTH - 1, TFTHEIGHT - 1);
+    setAddrWindow(0, 0, TFT_WIDTH - 1, TFT_HEIGHT - 1);
 
     struct timeval start, end;
 
@@ -252,7 +282,7 @@ int main()
 
     //pushColors(data, sizeof(data) / 2, true);
     // displayOff();
-    fillRect(0, 0, TFTWIDTH, TFTHEIGHT, color);
+    fillRect(0, 0, TFT_WIDTH, TFT_HEIGHT, color);
     //writeRegister8(ILI9341_DISPLAYON, 0);
 
     // displayOn();
@@ -269,6 +299,25 @@ int main()
   while (1)
   {
   }
+*/
+
+  handle = spiOpen(0, 96000, 0);
+  if (handle < 0)
+  {
+    //bad!
+    printf("Error opening SPI!\n");
+  }
+
+  while (1)
+  {
+    usleep(1000 * 100);
+    printf("do\n");
+    /*readChannel(0);
+        readChannel(1);*/
+    getPoint();
+  }
+
+  spiClose(handle);
 
   return 0;
 }
@@ -277,11 +326,11 @@ void drawPixel(int16_t x, int16_t y, uint16_t color)
 {
 
   // Clip
-  if ((x < 0) || (y < 0) || (x >= TFTWIDTH) || (y >= TFTHEIGHT))
+  if ((x < 0) || (y < 0) || (x >= TFT_WIDTH) || (y >= TFT_HEIGHT))
     return;
 
   CS_ACTIVE;
-  setAddrWindow(x, y, TFTWIDTH - 1, TFTHEIGHT - 1);
+  setAddrWindow(x, y, TFT_WIDTH - 1, TFT_HEIGHT - 1);
   CS_ACTIVE;
   CD_COMMAND;
   write8(0x2C);
@@ -331,7 +380,7 @@ void fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h,
 
   // Initial off-screen clipping
   if ((w <= 0) || (h <= 0) ||
-      (x1 >= TFTWIDTH) || (y1 >= TFTHEIGHT) ||
+      (x1 >= TFT_WIDTH) || (y1 >= TFT_HEIGHT) ||
       ((x2 = x1 + w - 1) < 0) || ((y2 = y1 + h - 1) < 0))
     return;
   if (x1 < 0)
@@ -344,14 +393,14 @@ void fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h,
     h += y1;
     y1 = 0;
   }
-  if (x2 >= TFTWIDTH)
+  if (x2 >= TFT_WIDTH)
   { // Clip right
-    x2 = TFTWIDTH - 1;
+    x2 = TFT_WIDTH - 1;
     w = x2 - x1 + 1;
   }
-  if (y2 >= TFTHEIGHT)
+  if (y2 >= TFT_HEIGHT)
   { // Clip bottom
-    y2 = TFTHEIGHT - 1;
+    y2 = TFT_HEIGHT - 1;
     h = y2 - y1 + 1;
   }
 
@@ -441,7 +490,7 @@ void flood(uint16_t color, uint32_t len)
 
 void fillScreen(uint16_t color)
 {
-  fillRect(0, 0, TFTWIDTH, TFTHEIGHT, color);
+  fillRect(0, 0, TFT_WIDTH, TFT_HEIGHT, color);
 }
 
 void drawBorder()
@@ -449,8 +498,8 @@ void drawBorder()
 
   // Draw a border
 
-  uint16_t width = TFTWIDTH - 1;
-  uint16_t height = TFTHEIGHT - 1;
+  uint16_t width = TFT_WIDTH - 1;
+  uint16_t height = TFT_HEIGHT - 1;
   uint8_t border = 30;
 
   fillScreen(RED);
@@ -487,4 +536,206 @@ void pushColors(uint16_t *data, /*uint8_t*/ int len, bool first)
     write8(lo);
   }
   CS_IDLE;
+}
+
+int readChannel(uint8_t channel)
+{
+  uint8_t command = 0b11 << 6;
+  command |= (channel & 0x07) << 3;
+  const int commandLen = 3;
+  char txBuf[commandLen];
+  char rxBuf[commandLen];
+
+  memset(txBuf, 0, commandLen);
+  memset(rxBuf, 0, commandLen);
+
+  txBuf[0] = command;
+  // printf("channel %d:\n", channel);
+  printf("read %d bytes:\n", spiXfer(handle, txBuf, rxBuf, commandLen));
+
+  for (int i = 0; i < commandLen; ++i)
+  {
+    // printf("0x%X ", rxBuf[i]);
+  }
+  // printf("\n");
+
+  uint16_t result = (rxBuf[0] & 0x01) << 9;
+  result |= (rxBuf[1] & 0xFF) << 1;
+  result |= (rxBuf[2] & 0x80) >> 7;
+  result &= 0x3FF;
+  // printf("value = %d(%fV)\n", result, (REFERENCE_VOLTAGE * (float)result) / 1024.f);
+  return result;
+}
+
+int analogRead(int c)
+{
+
+  switch (c)
+  {
+  case _yp:
+  {
+    return readChannel(1);
+  }
+  break;
+  case _xm:
+  {
+    return readChannel(0);
+  }
+  break;
+  default:
+    printf("analog Read error!!!\n");
+    break;
+  }
+
+  return 0;
+}
+
+#if (NUMSAMPLES > 2)
+static void insert_sort(int array[], uint8_t size)
+{
+  uint8_t j;
+  int save;
+
+  for (int i = 1; i < size; i++)
+  {
+    save = array[i];
+    for (j = i; j >= 1 && save < array[j - 1]; j--)
+      array[j] = array[j - 1];
+    array[j] = save;
+  }
+}
+#endif
+
+void getPoint(void)
+{
+  int x, y, z;
+  int samples[NUMSAMPLES];
+  uint8_t i, valid;
+
+  valid = 1;
+
+  pinMode(_yp, INPUT);
+  pinMode(_ym, INPUT);
+  gpioSetPullUpDown(_yp, PI_PUD_OFF);
+  gpioSetPullUpDown(_ym, PI_PUD_OFF);
+
+  pinMode(_xp, OUTPUT);
+  pinMode(_xm, OUTPUT);
+  digitalWrite(_xp, HIGH);
+  digitalWrite(_xm, LOW);
+
+  for (i = 0; i < NUMSAMPLES; i++)
+  {
+    samples[i] = analogRead(_yp);
+  }
+#if NUMSAMPLES > 2
+  insert_sort(samples, NUMSAMPLES);
+#endif
+#if NUMSAMPLES == 2
+  if (samples[0] != samples[1])
+  {
+    valid = 0;
+  }
+#endif
+  x = (1023 - samples[NUMSAMPLES / 2]);
+
+  usleep(10000);
+
+  pinMode(_xp, INPUT);
+  pinMode(_xm, INPUT);
+  gpioSetPullUpDown(_xp, PI_PUD_OFF);
+  gpioSetPullUpDown(_xm, PI_PUD_OFF);
+
+  pinMode(_yp, OUTPUT);
+  digitalWrite(_yp, HIGH);
+  pinMode(_ym, OUTPUT);
+  digitalWrite(_ym, LOW); ////////TODO: remove if not working?
+
+  for (i = 0; i < NUMSAMPLES; i++)
+  {
+    samples[i] = analogRead(_xm);
+  }
+
+#if NUMSAMPLES > 2
+  insert_sort(samples, NUMSAMPLES);
+#endif
+#if NUMSAMPLES == 2
+  if (samples[0] != samples[1])
+  {
+    valid = 0;
+  }
+#endif
+
+  y = (1023 - samples[NUMSAMPLES / 2]);
+
+  // Set X+ to ground
+  pinMode(_xp, OUTPUT);
+  digitalWrite(_xp, LOW);
+
+  // Set Y- to VCC
+  pinMode(_ym, OUTPUT); //TODO: remove after tested
+  digitalWrite(_ym, HIGH);
+
+  // Hi-Z X- and Y+
+  pinMode(_yp, OUTPUT);
+  digitalWrite(_yp, LOW);
+
+  pinMode(_yp, INPUT);
+
+  gpioSetPullUpDown(_yp, PI_PUD_OFF); //HiZ (not sure if good)
+
+  ///////////////////////////
+  int z1 = analogRead(_xm);
+  int z2 = analogRead(_yp);
+
+  if (_rxplate != 0)
+  {
+    // now read the x
+    float rtouch;
+    rtouch = z2;
+    rtouch /= z1;
+    rtouch -= 1;
+    rtouch *= x;
+    rtouch *= _rxplate;
+    rtouch /= 1024;
+
+    z = rtouch;
+  }
+  else
+  {
+    z = (1023 - (z2 - z1));
+  }
+
+  if (!valid)
+  {
+    z = 0;
+  }
+
+  // printf("Normal: x = %d, y = %d, z = %d\n", x, y, z);
+  // printf("Inverted: x = %d, y = %d, z = %d\n", x, 1023 - y, z);
+
+  long px = map(x, TS_MINX, TS_MAXX, 0, TFT_WIDTH);
+  long py = map(y, TS_MINY, TS_MAXY, 0, TFT_HEIGHT);
+
+  printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
+
+  int16_t pointWidth = 5;
+  int16_t pointHeight = 5;
+
+  if (z > 200)
+  { //TODO: make define
+
+    //TODO: see what is needed
+    pinMode(_yp, PI_OUTPUT);
+    pinMode(_xm, PI_OUTPUT);
+    pinMode(_ym, PI_OUTPUT);
+    pinMode(_xp, PI_OUTPUT);
+
+    fillRect(px, py, pointWidth, pointHeight, GREEN);
+  }
+}
+
+long map(long x, long in_min, long in_max, long out_min, long out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
