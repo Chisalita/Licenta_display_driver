@@ -6,6 +6,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -120,9 +125,20 @@ void write8(uint8_t value)
     write8(lo);               \
   }
 
+typedef enum {
+  //degrees are defined as clockwise, starting as having the button on the right side of the screen
+  ROTATION_0_DEGREES,
+  ROTATION_90_DEGREES,
+  ROTATION_180_DEGREES,
+  ROTATION_270_DEGREES
+} rotation_t;
+
 int _reset = RESET_PIN;
 int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
 int handle;       //make it local!!!
+int _width = TFT_HEIGHT;
+int _height = TFT_WIDTH;
+rotation_t _rotation = ROTATION_0_DEGREES;
 
 void drawPixel(int16_t x, int16_t y, uint16_t color);
 void writeRegister32(uint8_t r, uint32_t d);
@@ -138,6 +154,7 @@ void pushColors(uint16_t *data, /*uint8_t*/ int len, bool first);
 int readChannel(uint8_t channel);
 void getPoint(void);
 long map(long x, long in_min, long in_max, long out_min, long out_max);
+void setRotation(rotation_t rotation);
 
 void writeRegister32(uint8_t r, uint32_t d)
 {
@@ -236,7 +253,7 @@ int main()
   writeRegister8(ILI9341_POWERCONTROL2, 0x10);
   writeRegister16(ILI9341_VCOMCONTROL1, 0x2B2B);
   writeRegister8(ILI9341_VCOMCONTROL2, 0xC0);
-  writeRegister8(ILI9341_MEMCONTROL, /*ILI9341_MADCTL_MY |*/ ILI9341_MADCTL_BGR);
+  writeRegister8(ILI9341_MADCTL, /*ILI9341_MADCTL_MY |*/ ILI9341_MADCTL_BGR); //here also do rotation
   writeRegister8(ILI9341_PIXELFORMAT, 0x55);
   writeRegister16(ILI9341_FRAMECONTROL, 0x001B);
 
@@ -248,7 +265,9 @@ int main()
   writeNoParamCommand(ILI9341_DISPLAYON);
   //init();
   delay(500);
-  setAddrWindow(0, 0, TFT_WIDTH - 1, TFT_HEIGHT - 1);
+  setRotation(ROTATION_0_DEGREES);
+
+  // setAddrWindow(0, 0, _width - 1, _height - 1);
   CS_IDLE;
 
   printf("setAddr\n");
@@ -272,7 +291,7 @@ int main()
   {
     color ^= BLUE;
     memset(data, color, sizeof(data));
-    setAddrWindow(0, 0, TFT_WIDTH - 1, TFT_HEIGHT - 1);
+    setAddrWindow(0, 0, _width - 1, _height - 1);
 
     struct timeval start, end;
 
@@ -282,7 +301,7 @@ int main()
 
     //pushColors(data, sizeof(data) / 2, true);
     // displayOff();
-    fillRect(0, 0, TFT_WIDTH, TFT_HEIGHT, color);
+    fillRect(0, 0, _width, _height, color);
     //writeRegister8(ILI9341_DISPLAYON, 0);
 
     // displayOn();
@@ -300,6 +319,25 @@ int main()
   {
   }
 */
+
+  /////////////FRAME BUFFER////////////////
+  char *outfile = "out.file";
+  int outfd = open(outfile, O_RDWR);
+  uint16_t frameBuffer[320 * 240];
+
+  if (outfd == -1)
+  {
+    fprintf(stderr, "cannot open outfd - %s", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  int r = read(outfd, frameBuffer, sizeof(frameBuffer));
+  printf("read %d bytes\n", r);
+  setRotation(ROTATION_0_DEGREES);
+  //fillRect(0, 0, _width, _height, RED);
+  pushColors(frameBuffer, r / 2, true);
+
+  /////////////FRAME BUFFER////////////////
 
   handle = spiOpen(0, 96000, 0);
   if (handle < 0)
@@ -322,15 +360,51 @@ int main()
   return 0;
 }
 
+void setRotation(rotation_t rotation)
+{
+
+  CS_ACTIVE;
+  // MEME, HX8357D uses same registers as 9341 but different values
+  uint16_t t;
+
+  _rotation = rotation;
+  switch (rotation)
+  {
+  case ROTATION_270_DEGREES: //270
+    t = ILI9341_MADCTL_MX | ILI9341_MADCTL_BGR;
+    _width = TFT_WIDTH;
+    _height = TFT_HEIGHT;
+    break;
+  case ROTATION_0_DEGREES: //0
+    t = ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR;
+    _width = TFT_HEIGHT;
+    _height = TFT_WIDTH;
+    break;
+  case ROTATION_90_DEGREES: //90
+    t = ILI9341_MADCTL_MY | ILI9341_MADCTL_BGR;
+    _width = TFT_WIDTH;
+    _height = TFT_HEIGHT;
+    break;
+  case ROTATION_180_DEGREES: //180
+    t = ILI9341_MADCTL_MX | ILI9341_MADCTL_MY | ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR;
+    _width = TFT_HEIGHT;
+    _height = TFT_WIDTH;
+    break;
+  }
+  writeRegister8(ILI9341_MADCTL, t); 
+  // For 9341, init default full-screen address window:
+  setAddrWindow(0, 0, _width - 1, _height - 1); // CS_IDLE happens here
+}
+
 void drawPixel(int16_t x, int16_t y, uint16_t color)
 {
 
   // Clip
-  if ((x < 0) || (y < 0) || (x >= TFT_WIDTH) || (y >= TFT_HEIGHT))
+  if ((x < 0) || (y < 0) || (x >= _width) || (y >= _height))
     return;
 
   CS_ACTIVE;
-  setAddrWindow(x, y, TFT_WIDTH - 1, TFT_HEIGHT - 1);
+  setAddrWindow(x, y, _width - 1, _height - 1);
   CS_ACTIVE;
   CD_COMMAND;
   write8(0x2C);
@@ -380,7 +454,7 @@ void fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h,
 
   // Initial off-screen clipping
   if ((w <= 0) || (h <= 0) ||
-      (x1 >= TFT_WIDTH) || (y1 >= TFT_HEIGHT) ||
+      (x1 >= _width) || (y1 >= _height) ||
       ((x2 = x1 + w - 1) < 0) || ((y2 = y1 + h - 1) < 0))
     return;
   if (x1 < 0)
@@ -393,14 +467,14 @@ void fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h,
     h += y1;
     y1 = 0;
   }
-  if (x2 >= TFT_WIDTH)
+  if (x2 >= _width)
   { // Clip right
-    x2 = TFT_WIDTH - 1;
+    x2 = _width - 1;
     w = x2 - x1 + 1;
   }
-  if (y2 >= TFT_HEIGHT)
+  if (y2 >= _height)
   { // Clip bottom
-    y2 = TFT_HEIGHT - 1;
+    y2 = _height - 1;
     h = y2 - y1 + 1;
   }
 
@@ -490,7 +564,7 @@ void flood(uint16_t color, uint32_t len)
 
 void fillScreen(uint16_t color)
 {
-  fillRect(0, 0, TFT_WIDTH, TFT_HEIGHT, color);
+  fillRect(0, 0, _width, _height, color);
 }
 
 void drawBorder()
@@ -498,8 +572,8 @@ void drawBorder()
 
   // Draw a border
 
-  uint16_t width = TFT_WIDTH - 1;
-  uint16_t height = TFT_HEIGHT - 1;
+  uint16_t width = _width - 1;
+  uint16_t height = _height - 1;
   uint8_t border = 30;
 
   fillScreen(RED);
@@ -714,8 +788,26 @@ void getPoint(void)
   // printf("Normal: x = %d, y = %d, z = %d\n", x, y, z);
   // printf("Inverted: x = %d, y = %d, z = %d\n", x, 1023 - y, z);
 
-  long px = map(x, TS_MINX, TS_MAXX, 0, TFT_WIDTH);
-  long py = map(y, TS_MINY, TS_MAXY, 0, TFT_HEIGHT);
+  int tsMaxx = TS_MAXX;
+  int tsMaxy = TS_MAXY;
+  int tsMinx = TS_MINX;
+  int tsMiny = TS_MINY;
+
+  if (_rotation == ROTATION_0_DEGREES || _rotation == ROTATION_180_DEGREES)
+  {
+    //TODO: make common case faster
+    int aux = x;
+    x = y;
+    y = aux;
+
+    tsMaxx = TS_MAXY;
+    tsMaxy = TS_MAXX;
+    tsMinx = TS_MINY;
+    tsMiny = TS_MINX;
+  }
+
+  long px = map(x, tsMinx, tsMaxx, 0, _width);
+  long py = map(y, tsMiny, tsMaxy, 0, _height);
 
   printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
 
