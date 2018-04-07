@@ -26,8 +26,8 @@ static int analogRead(int c);
 static long map(long x, long in_min, long in_max, long out_min, long out_max);
 static int readChannel(uint8_t channel);
 
-int handle;       //make it local!!!
-int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
+static int handle;       //make it local!!!
+static int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
 
 #if (NUMSAMPLES > 2)
 static void insert_sort(int array[], uint8_t size)
@@ -50,7 +50,6 @@ int touchScreen_initTouch()
     handle = spiOpen(0, 96000, 0);
     if (handle < 0)
     {
-        //bad!
         printf("Error opening SPI!\n");
         return handle;
     }
@@ -175,7 +174,7 @@ void touchScreen_getPoint(void)
     int tsMinx = TS_MINX;
     int tsMiny = TS_MINY;
 
-    if (ili9341Shield_getDisplayRotation() == ROTATION_0_DEGREES || ili9341Shield_getDisplayRotation() == ROTATION_180_DEGREES)
+    if (display_getDisplayRotation() == ROTATION_0_DEGREES || display_getDisplayRotation() == ROTATION_180_DEGREES)
     {
         //TODO: make common case faster
         int aux = x;
@@ -188,16 +187,14 @@ void touchScreen_getPoint(void)
         tsMiny = TS_MINX;
     }
 
-    long px = map(x, tsMinx, tsMaxx, 0, ili9341Shield_getDisplayWidth());
-    long py = map(y, tsMiny, tsMaxy, 0, ili9341Shield_getDisplayHeight());
+    long px = map(x, tsMinx, tsMaxx, 0, display_getDisplayWidth());
+    long py = map(y, tsMiny, tsMaxy, 0, display_getDisplayHeight());
 
     printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
 
     int16_t pointWidth = 5;
     int16_t pointHeight = 5;
 
-    if (z > 200)
-    { //TODO: make define
 
         //TODO: see what is needed
         gpioSetMode(_yp, PI_OUTPUT);
@@ -205,7 +202,16 @@ void touchScreen_getPoint(void)
         gpioSetMode(_ym, PI_OUTPUT);
         gpioSetMode(_xp, PI_OUTPUT);
 
-        fillRect(px, py, pointWidth, pointHeight, GREEN);
+    if (z > 200)
+    { //TODO: make define
+/*
+        //TODO: see what is needed
+        gpioSetMode(_yp, PI_OUTPUT);
+        gpioSetMode(_xm, PI_OUTPUT);
+        gpioSetMode(_ym, PI_OUTPUT);
+        gpioSetMode(_xp, PI_OUTPUT);
+*/
+        display_fillRect(px, py, pointWidth, pointHeight, GREEN);
     }
 }
 

@@ -18,8 +18,9 @@
 #include "ili9341Shield.h"
 #include "touchScreen.h"
 #include "display.h" //TODO: remove when not needed
+#include "frameBuffer.h"
 
-int main()
+int main(int argc, char **argv)
 {
 
   int res = gpioInitialise();
@@ -34,15 +35,15 @@ int main()
   printf("setAddr\n");
   // int i=0;
 
-  drawBorder();
+  display_drawBorder();
   for (i = 0; i < 150; i++)
   {
-    drawPixel(i, i, BLACK);
+    display_drawPixel(i, i, BLACK);
   }
 
   printf("pixels\n");
 
-  fillRect(50, 50, 50, 50, GREEN);
+  display_fillRect(50, 50, 50, 50, GREEN);
 
   //See how much time it takes to fill the screen
   uint16_t data[320 * 240];
@@ -52,7 +53,7 @@ int main()
   {
     color ^= BLUE;
     memset(data, color, sizeof(data));
-    setAddrWindow(0, 0, _width - 1, _height - 1);
+    ili9341Shield_setAddrWindow(0, 0, _width - 1, _height - 1);
 
     struct timeval start, end;
 
@@ -61,9 +62,9 @@ int main()
     gettimeofday(&start, NULL);
 
     //pushColors(data, sizeof(data) / 2, true);
-    // displayOff();
-    fillRect(0, 0, _width, _height, color);
-    //writeRegister8(ILI9341_DISPLAYON, 0);
+    // display_displayOff();
+    display_fillRect(0, 0, _width, _height, color);
+    //ili9341Shield_writeRegister8(ILI9341_DISPLAYON, 0);
 
     // displayOn();
     //usleep(1E6);
@@ -81,25 +82,18 @@ int main()
   }
 */
 
-  /////////////FRAME BUFFER////////////////
-  char *outfile = "out.file";
-  int outfd = open(outfile, O_RDWR);
-  uint16_t frameBuffer[320 * 240];
 
-  if (outfd == -1)
-  {
-    fprintf(stderr, "cannot open outfd - %s", strerror(errno));
-    exit(EXIT_FAILURE);
+  int st = touchScreen_initTouch();
+  setRotation(ROTATION_0_DEGREES);
+
+
+  //display_fillRect(0, 0, _width, _height, RED);
+  while(1){
+  display_drawFrameBuffer();
+  touchScreen_getPoint();
   }
 
-  int r = read(outfd, frameBuffer, sizeof(frameBuffer));
-  printf("read %d bytes\n", r);
-  setRotation(ROTATION_0_DEGREES);
-  //fillRect(0, 0, _width, _height, RED);
-  pushColors(frameBuffer, r / 2, true);
 
-  /////////////FRAME BUFFER////////////////
-  int st = touchScreen_initTouch();
 
   while (1)
   {

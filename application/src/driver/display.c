@@ -1,37 +1,70 @@
 #include "display.h"
 #include <pigpio.h>
+#include "registers.h"
 #include "ili9341Shield.h"
+#include "frameBuffer.h"
+
+
+#define TFT_WIDTH (240)
+#define TFT_HEIGHT (320)
 
 static void setLR(void);
 static void flood(uint16_t color, uint32_t len);
 
-void drawPixel(int16_t x, int16_t y, uint16_t color)
+static rotation_t _rotation = ROTATION_0_DEGREES;
+static int _width = TFT_HEIGHT;
+static int _height = TFT_WIDTH;
+static uint16_t frameBuffer[TFT_WIDTH * TFT_HEIGHT];
+
+
+int display_drawFrameBuffer(){
+  getFrame(frameBuffer);
+  ili9341Shield_setAddrWindow(0,0,_width, _height);
+  pushColors(frameBuffer, (TFT_WIDTH * TFT_HEIGHT), true);
+  return 0;
+}
+
+rotation_t display_getDisplayRotation()
+{
+    return _rotation;
+}
+
+int display_getDisplayWidth()
+{
+    return _width;
+}
+int display_getDisplayHeight()
+{
+    return _height;
+}
+
+void display_drawPixel(int16_t x, int16_t y, uint16_t color)
 {
 
     // Clip
-    if ((x < 0) || (y < 0) || (x >= ili9341Shield_getDisplayWidth()) || (y >= ili9341Shield_getDisplayHeight()))
+    if ((x < 0) || (y < 0) || (x >= display_getDisplayWidth()) || (y >= display_getDisplayHeight()))
         return;
 
     CS_ACTIVE;
-    setAddrWindow(x, y, ili9341Shield_getDisplayWidth() - 1, ili9341Shield_getDisplayHeight() - 1);
+    ili9341Shield_setAddrWindow(x, y, display_getDisplayWidth() - 1, display_getDisplayHeight() - 1);
     CS_ACTIVE;
     CD_COMMAND;
-    write8(0x2C);
+    ili9341Shield_write8(0x2C);
     CD_DATA;
-    write8(color >> 8);
-    write8(color);
+    ili9341Shield_write8(color >> 8);
+    ili9341Shield_write8(color);
 
     CS_IDLE;
 }
 
-void fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h,
+void display_fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h,
               uint16_t fillcolor)
 {
     int16_t x2, y2;
 
     // Initial off-screen clipping
     if ((w <= 0) || (h <= 0) ||
-        (x1 >= ili9341Shield_getDisplayWidth()) || (y1 >= ili9341Shield_getDisplayHeight()) ||
+        (x1 >= display_getDisplayWidth()) || (y1 >= display_getDisplayHeight()) ||
         ((x2 = x1 + w - 1) < 0) || ((y2 = y1 + h - 1) < 0))
         return;
     if (x1 < 0)
@@ -44,18 +77,18 @@ void fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h,
         h += y1;
         y1 = 0;
     }
-    if (x2 >= ili9341Shield_getDisplayWidth())
+    if (x2 >= display_getDisplayWidth())
     { // Clip right
-        x2 = ili9341Shield_getDisplayWidth() - 1;
+        x2 = display_getDisplayWidth() - 1;
         w = x2 - x1 + 1;
     }
-    if (y2 >= ili9341Shield_getDisplayHeight())
+    if (y2 >= display_getDisplayHeight())
     { // Clip bottom
-        y2 = ili9341Shield_getDisplayHeight() - 1;
+        y2 = display_getDisplayHeight() - 1;
         h = y2 - y1 + 1;
     }
 
-    setAddrWindow(x1, y1, x2, y2);
+    ili9341Shield_setAddrWindow(x1, y1, x2, y2);
     flood(fillcolor, (uint32_t)w * (uint32_t)h);
     setLR();
 }
@@ -78,12 +111,12 @@ static void flood(uint16_t color, uint32_t len)
     CS_ACTIVE;
     CD_COMMAND;
 
-    write8(0x2C);
+    ili9341Shield_write8(0x2C);
 
     // Write first pixel normally, decrement counter by 1
     CD_DATA;
-    write8(hi);
-    write8(lo);
+    ili9341Shield_write8(hi);
+    ili9341Shield_write8(lo);
     len--;
 
     blocks = (uint16_t)(len / 64); // 64 pixels/block
@@ -120,20 +153,20 @@ static void flood(uint16_t color, uint32_t len)
             i = 16; // 64 pixels/block / 4 pixels/pass
             do
             {
-                write8(hi);
-                write8(lo);
-                write8(hi);
-                write8(lo);
-                write8(hi);
-                write8(lo);
-                write8(hi);
-                write8(lo);
+                ili9341Shield_write8(hi);
+                ili9341Shield_write8(lo);
+                ili9341Shield_write8(hi);
+                ili9341Shield_write8(lo);
+                ili9341Shield_write8(hi);
+                ili9341Shield_write8(lo);
+                ili9341Shield_write8(hi);
+                ili9341Shield_write8(lo);
             } while (--i);
         }
         for (i = (uint8_t)len & 63; i--;)
         {
-            write8(hi);
-            write8(lo);
+            ili9341Shield_write8(hi);
+            ili9341Shield_write8(lo);
         }
     }
     CS_IDLE;
@@ -141,20 +174,20 @@ static void flood(uint16_t color, uint32_t len)
 
 void fillScreen(uint16_t color)
 {
-    fillRect(0, 0, ili9341Shield_getDisplayWidth(), ili9341Shield_getDisplayHeight(), color);
+    display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), color);
 }
 
-void drawBorder()
+void display_drawBorder()
 {
 
     // Draw a border
 
-    uint16_t width = ili9341Shield_getDisplayWidth() - 1;
-    uint16_t height = ili9341Shield_getDisplayHeight() - 1;
+    uint16_t width = display_getDisplayWidth() - 1;
+    uint16_t height = display_getDisplayHeight() - 1;
     uint8_t border = 30;
 
     fillScreen(RED);
-    fillRect(border, border, (width - border * 2), (height - border * 2), BLUE);
+    display_fillRect(border, border, (width - border * 2), (height - border * 2), BLUE);
 }
 
 // Pass 8-bit (each) R,G,B, get back 16-bit packed color
@@ -175,7 +208,7 @@ void pushColors(uint16_t *data, /*uint8_t*/ int len, bool first)
     if (first == true)
     { // Issue GRAM write command only on first call
         CD_COMMAND;
-        write8(0x2C);
+        ili9341Shield_write8(0x2C);
     }
     CD_DATA;
     while (len--)
@@ -183,8 +216,60 @@ void pushColors(uint16_t *data, /*uint8_t*/ int len, bool first)
         color = *data++;
         hi = color >> 8; // Don't simplify or merge these
         lo = color;      // lines, there's macro shenanigans
-        write8(hi);      // going on.
-        write8(lo);
+        ili9341Shield_write8(hi);      // going on.
+        ili9341Shield_write8(lo);
     }
+    CS_IDLE;
+}
+
+void setRotation(rotation_t rotation)
+{
+
+    CS_ACTIVE;
+    // MEME, HX8357D uses same registers as 9341 but different values
+    uint16_t t;
+
+    _rotation = rotation;
+    switch (rotation)
+    {
+    case ROTATION_270_DEGREES: //270
+        t = ILI9341_MADCTL_MX | ILI9341_MADCTL_BGR;
+        _width = TFT_WIDTH;
+        _height = TFT_HEIGHT;
+        break;
+    case ROTATION_0_DEGREES: //0
+        t = ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR;
+        _width = TFT_HEIGHT;
+        _height = TFT_WIDTH;
+        break;
+    case ROTATION_90_DEGREES: //90
+        t = ILI9341_MADCTL_MY | ILI9341_MADCTL_BGR;
+        _width = TFT_WIDTH;
+        _height = TFT_HEIGHT;
+        break;
+    case ROTATION_180_DEGREES: //180
+        t = ILI9341_MADCTL_MX | ILI9341_MADCTL_MY | ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR;
+        _width = TFT_HEIGHT;
+        _height = TFT_WIDTH;
+        break;
+    }
+    ili9341Shield_writeRegister8(ILI9341_MADCTL, t);
+    // For 9341, init default full-screen address window:
+    ili9341Shield_setAddrWindow(0, 0, _width - 1, _height - 1); // CS_IDLE happens here
+}
+
+void display_displayOff()
+{
+    CS_ACTIVE;
+    CD_COMMAND;
+    ili9341Shield_write8(ILI9341_DISPLAYOFF);
+    CS_IDLE;
+}
+
+void displayOn()
+{
+    CS_ACTIVE;
+    CD_COMMAND;
+    ili9341Shield_write8(ILI9341_DISPLAYON);
     CS_IDLE;
 }
