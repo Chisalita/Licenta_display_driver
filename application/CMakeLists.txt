@@ -26,4 +26,4 @@ project (${APPLICATION_NAME})
 add_executable(${APPLICATION_NAME} ${SOURCES})
 
 #needed libraries
-target_link_libraries(${APPLICATION_NAME} pthread pigpio bcm_host)
+target_link_libraries(${APPLICATION_NAME} pthread pigpio bcm_host X11)

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pigpio.h>
+#include <X11/Xlib.h>
 
 #include "ili9341Shield.h"
 #include "display.h" //TODO: remove when not needed
@@ -25,9 +26,11 @@
 static int analogRead(int c);
 static long map(long x, long in_min, long in_max, long out_min, long out_max);
 static int readChannel(uint8_t channel);
+static void click(int x, int y, int button);
 
 static int handle;       //make it local!!!
 static int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
+Display *display = NULL;
 
 #if (NUMSAMPLES > 2)
 static void insert_sort(int array[], uint8_t size)
@@ -53,6 +56,11 @@ int touchScreen_initTouch()
         printf("Error opening SPI!\n");
         return handle;
     }
+
+    display = XOpenDisplay(0);
+    // Window root_window;
+    // root_window = XRootWindow(display, 0);
+
     return 0;
 }
 
@@ -195,16 +203,15 @@ void touchScreen_getPoint(void)
     int16_t pointWidth = 5;
     int16_t pointHeight = 5;
 
-
-        //TODO: see what is needed
-        gpioSetMode(_yp, PI_OUTPUT);
-        gpioSetMode(_xm, PI_OUTPUT);
-        gpioSetMode(_ym, PI_OUTPUT);
-        gpioSetMode(_xp, PI_OUTPUT);
+    //TODO: see what is needed
+    gpioSetMode(_yp, PI_OUTPUT);
+    gpioSetMode(_xm, PI_OUTPUT);
+    gpioSetMode(_ym, PI_OUTPUT);
+    gpioSetMode(_xp, PI_OUTPUT);
 
     if (z > 200)
     { //TODO: make define
-/*
+        /*
         //TODO: see what is needed
         gpioSetMode(_yp, PI_OUTPUT);
         gpioSetMode(_xm, PI_OUTPUT);
@@ -212,6 +219,7 @@ void touchScreen_getPoint(void)
         gpioSetMode(_xp, PI_OUTPUT);
 */
         display_fillRect(px, py, pointWidth, pointHeight, GREEN);
+        click(px, py, Button1);
     }
 }
 
@@ -270,4 +278,63 @@ static int analogRead(int c)
     }
 
     return 0;
+}
+
+// Simulate mouse click
+static void click(int x, int y, int button)
+{
+
+    if (display == NULL)
+    {
+        return;
+    }
+
+    Window root_window;
+    root_window = XRootWindow(display, 0);
+
+    XSelectInput(display, root_window, KeyReleaseMask);
+    XWarpPointer(display, None, root_window, 0, 0, 0, 0, x, y);
+    XFlush(display); // Flushes the output buffer, therefore updates the cursor's position
+
+    //     struct timespec ts;
+    // //  int milliseconds = 1;
+    //     // ts.tv_sec = milliseconds / 1000;
+    //     // ts.tv_nsec = (milliseconds % 1000) * 1000000;
+    //     ts.tv_sec = 0;
+    //     ts.tv_nsec = 1000;
+    //     nanosleep(&ts, NULL);
+
+    // Create and setting up the event
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.xbutton.button = button;
+    event.xbutton.same_screen = True;
+    event.xbutton.subwindow = DefaultRootWindow(display);
+    while (event.xbutton.subwindow)
+    {
+        printf("do\n");
+        event.xbutton.window = event.xbutton.subwindow;
+        XQueryPointer(display, event.xbutton.window,
+                      &event.xbutton.root, &event.xbutton.subwindow,
+                      &event.xbutton.x_root, &event.xbutton.y_root,
+                      &event.xbutton.x, &event.xbutton.y,
+                      &event.xbutton.state);
+    }
+    // Press
+    event.type = ButtonPress;
+    if (XSendEvent(display, PointerWindow, True, ButtonPressMask, &event) == 0)
+        fprintf(stderr, "Error to send the event!\n");
+    XFlush(display);
+    printf("YA\n");
+    // sleep(1);
+    printf("wow\n");
+    //  nanosleep(&ts, NULL);
+
+    // Release
+    event.type = ButtonRelease;
+    if (XSendEvent(display, PointerWindow, True, ButtonReleaseMask, &event) == 0)
+        fprintf(stderr, "Error to send the event!\n");
+    XFlush(display);
+    // sleep(1);
+    // nanosleep(&ts, NULL);
 }

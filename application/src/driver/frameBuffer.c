@@ -27,6 +27,61 @@ int getFrame(void* outFrameBuff){
     struct fb_fix_screeninfo finfo;
 
 
+    static int once=0;
+
+    if(!once){
+        fbfd = open("/dev/fb0", O_RDWR);
+    if (fbfd == -1) {
+        syslog(LOG_ERR, "Unable to open secondary display");
+        return -1;
+    }
+    if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo)) {
+        syslog(LOG_ERR, "Unable to get secondary display information");
+        return -1;
+    }
+    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo)) {
+        syslog(LOG_ERR, "Unable to get secondary display information");
+        return -1;
+    }
+
+    /////////////////////////////////////////////////////
+
+    if ((vinfo.bits_per_pixel != 16) &&
+        (vinfo.bits_per_pixel != 24) &&
+        (vinfo.bits_per_pixel != 32))
+    {
+        fprintf(stderr, "only 16, 24 and 32 ");
+        fprintf(stderr, "bits per pixels supported\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("resolution = %dx%d\n", vinfo.xres, vinfo.yres);
+    vinfo.xres = 640;
+    vinfo.yres = 480;
+    
+    //printf("result = %d\n",ioctl (fbfd, FBIOPUT_VSCREENINFO, &vinfo));
+
+    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo) == -1)
+    {
+        fprintf(stderr,
+                "reading framebuffer variable information - %s",
+                strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+
+    printf("resolution = %dx%d\n", vinfo.xres, vinfo.yres);
+    once = 1;
+    }
+
+
+    ////////////////////////////////////////////////////
+
+
+
+
+
+
     bcm_host_init();
 
     display = vc_dispmanx_display_open(0);
@@ -42,19 +97,8 @@ int getFrame(void* outFrameBuff){
     syslog(LOG_INFO, "Primary display is %d x %d", display_info.width, display_info.height);
 
 
-    fbfd = open("/dev/fb1", O_RDWR);
-    if (fbfd == -1) {
-        syslog(LOG_ERR, "Unable to open secondary display");
-        return -1;
-    }
-    if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo)) {
-        syslog(LOG_ERR, "Unable to get secondary display information");
-        return -1;
-    }
-    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo)) {
-        syslog(LOG_ERR, "Unable to get secondary display information");
-        return -1;
-    }
+
+
 
     syslog(LOG_INFO, "Second display is %d x %d %dbps\n", vinfo.xres, vinfo.yres, vinfo.bits_per_pixel);
 
