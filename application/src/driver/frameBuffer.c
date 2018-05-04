@@ -131,9 +131,9 @@ memset(fbp, 0, sizeof(fbp));
 vc_dispmanx_rect_set(&rect1, 0, 0, 320, 240);
     while (1) {
         ret = vc_dispmanx_snapshot(display, screen_resource, 0);
-	printf("------\n"); 
+	// printf("------\n"); 
        vc_dispmanx_resource_read_data(screen_resource, &rect1, /*fbp*/outFrameBuff, 320 * 16 / 8);//vinfo.xres * vinfo.bits_per_pixel / 8);
-	printf("do\n");        
+	// printf("do\n");        
 usleep(25 * 1000);
 	//write(fout, fbp, sizeof(fbp));
 	break;

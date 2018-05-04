@@ -22,15 +22,25 @@
 #define TS_MINY 280 //85
 #define TS_MAXX 650 //965
 #define TS_MAXY 935 //905
+#define TOUCH_PRESS_TRESHOLD (350)
+
+typedef enum {
+    STATE_CLICK_RELEASED,
+    STATE_CLICK_PRESSED
+} touchState;
 
 static int analogRead(int c);
 static long map(long x, long in_min, long in_max, long out_min, long out_max);
 static int readChannel(uint8_t channel);
-static void click(int x, int y, int button);
+static void click(Display *display, int button);
+static void releaseClick(Display *display, int button);
+static void moveMouse(Display *display, int x, int y);
+static void processTouchState(int x, int y, int z);
 
 static int handle;       //make it local!!!
 static int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
-Display *display = NULL;
+// Display *display = NULL;
+touchState currentTouchState = STATE_CLICK_RELEASED;
 
 #if (NUMSAMPLES > 2)
 static void insert_sort(int array[], uint8_t size)
@@ -57,7 +67,8 @@ int touchScreen_initTouch()
         return handle;
     }
 
-    display = XOpenDisplay(0);
+    currentTouchState = STATE_CLICK_RELEASED;
+    // display = XOpenDisplay(0);
     // Window root_window;
     // root_window = XRootWindow(display, 0);
 
@@ -198,7 +209,7 @@ void touchScreen_getPoint(void)
     long px = map(x, tsMinx, tsMaxx, 0, display_getDisplayWidth());
     long py = map(y, tsMiny, tsMaxy, 0, display_getDisplayHeight());
 
-    printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
+    // printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
 
     int16_t pointWidth = 5;
     int16_t pointHeight = 5;
@@ -208,19 +219,9 @@ void touchScreen_getPoint(void)
     gpioSetMode(_xm, PI_OUTPUT);
     gpioSetMode(_ym, PI_OUTPUT);
     gpioSetMode(_xp, PI_OUTPUT);
-
-    if (z > 200)
-    { //TODO: make define
-        /*
-        //TODO: see what is needed
-        gpioSetMode(_yp, PI_OUTPUT);
-        gpioSetMode(_xm, PI_OUTPUT);
-        gpioSetMode(_ym, PI_OUTPUT);
-        gpioSetMode(_xp, PI_OUTPUT);
-*/
-        display_fillRect(px, py, pointWidth, pointHeight, GREEN);
-        click(px, py, Button1);
-    }
+    processTouchState(px, py, z);
+    // display_fillRect(px, py, pointWidth, pointHeight, GREEN);
+    // click(px, py, Button1);
 }
 
 static long map(long x, long in_min, long in_max, long out_min, long out_max)
@@ -241,7 +242,8 @@ static int readChannel(uint8_t channel)
 
     txBuf[0] = command;
     // printf("channel %d:\n", channel);
-    printf("read %d bytes:\n", spiXfer(handle, txBuf, rxBuf, commandLen));
+    int readBytes = spiXfer(handle, txBuf, rxBuf, commandLen);
+    // printf("read %d bytes:\n", readBytes);
 
     for (int i = 0; i < commandLen; ++i)
     {
@@ -280,10 +282,8 @@ static int analogRead(int c)
     return 0;
 }
 
-// Simulate mouse click
-static void click(int x, int y, int button)
+static void moveMouse(Display *display, int x, int y)
 {
-
     if (display == NULL)
     {
         return;
@@ -295,7 +295,16 @@ static void click(int x, int y, int button)
     XSelectInput(display, root_window, KeyReleaseMask);
     XWarpPointer(display, None, root_window, 0, 0, 0, 0, x, y);
     XFlush(display); // Flushes the output buffer, therefore updates the cursor's position
+}
 
+// Simulate mouse click
+static void click(Display *display, int button)
+{
+
+    if (display == NULL)
+    {
+        return;
+    }
     //     struct timespec ts;
     // //  int milliseconds = 1;
     //     // ts.tv_sec = milliseconds / 1000;
@@ -312,7 +321,6 @@ static void click(int x, int y, int button)
     event.xbutton.subwindow = DefaultRootWindow(display);
     while (event.xbutton.subwindow)
     {
-        printf("do\n");
         event.xbutton.window = event.xbutton.subwindow;
         XQueryPointer(display, event.xbutton.window,
                       &event.xbutton.root, &event.xbutton.subwindow,
@@ -325,16 +333,80 @@ static void click(int x, int y, int button)
     if (XSendEvent(display, PointerWindow, True, ButtonPressMask, &event) == 0)
         fprintf(stderr, "Error to send the event!\n");
     XFlush(display);
-    printf("YA\n");
+    /*   printf("YA\n");
     // sleep(1);
     printf("wow\n");
     //  nanosleep(&ts, NULL);
+
+   // Release
+    event.type = ButtonRelease;
+    if (XSendEvent(display, PointerWindow, True, ButtonReleaseMask, &event) == 0)
+        fprintf(stderr, "Error to send the event!\n");
+    XFlush(display);
+    // sleep(1);
+    // nanosleep(&ts, NULL);*/
+}
+
+static void releaseClick(Display *display, int button)
+{
+
+    if (display == NULL)
+    {
+        return;
+    }
+    // Create and setting up the event
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.xbutton.button = button;
+    event.xbutton.same_screen = True;
+    event.xbutton.subwindow = DefaultRootWindow(display);
+    while (event.xbutton.subwindow)
+    {
+        event.xbutton.window = event.xbutton.subwindow;
+        XQueryPointer(display, event.xbutton.window,
+                      &event.xbutton.root, &event.xbutton.subwindow,
+                      &event.xbutton.x_root, &event.xbutton.y_root,
+                      &event.xbutton.x, &event.xbutton.y,
+                      &event.xbutton.state);
+    }
 
     // Release
     event.type = ButtonRelease;
     if (XSendEvent(display, PointerWindow, True, ButtonReleaseMask, &event) == 0)
         fprintf(stderr, "Error to send the event!\n");
     XFlush(display);
-    // sleep(1);
-    // nanosleep(&ts, NULL);
+}
+
+static void processTouchState(int x, int y, int z)
+{
+
+    Display *display = XOpenDisplay(0);
+
+    // printf("z = %d\n", z);
+    touchState newTouchState = (z >= TOUCH_PRESS_TRESHOLD) ? STATE_CLICK_PRESSED : STATE_CLICK_RELEASED;
+
+    switch (currentTouchState)
+    {
+    case STATE_CLICK_PRESSED:
+        if (newTouchState == STATE_CLICK_PRESSED)
+        {
+            moveMouse(display, x, y);
+        }
+        else
+        {
+            releaseClick(display, Button1);
+            printf("pressed -> released\n");
+        }
+        break;
+    case STATE_CLICK_RELEASED:
+        if (newTouchState == STATE_CLICK_PRESSED)
+        {
+            moveMouse(display, x, y);
+            click(display, Button1);
+            printf("released -> pressed\n");
+        }
+        break;
+    }
+
+    currentTouchState = newTouchState;
 }

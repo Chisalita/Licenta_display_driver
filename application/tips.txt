@@ -19,3 +19,18 @@ framebuffer_height=240
 *Read all gpios from command line:
 
 gpio allreadall
+
+
+Remote debugging:
+
+start the server on the target 
+sudo gdbserver 192.168.2.201:1995 /home/pi/licenta/application/build/application &
+
+and then attach from host:
+
+gdb-multiarch application
+where application is the ARM compiled version of the app
+
+run command in gdb:
+target remote 192.168.2.201:1995
+

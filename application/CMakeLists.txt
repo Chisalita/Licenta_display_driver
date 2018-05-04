@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 2.8)
 
 SET(APPLICATION_NAME application)
 
-SET(CMAKE_C_FLAGS  "-Wall")
+SET(CMAKE_C_FLAGS  "-Wall -g")
 set(CMAKE_C_STANDARD 99)
 
 #my header files
