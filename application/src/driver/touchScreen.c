@@ -5,6 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <sys/wait.h>
 #include <pigpio.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
@@ -43,6 +45,7 @@ static void releaseClick(Display *display, int button);
 static void moveMouse(Display *display, int x, int y);
 static void processTouchState(int x, int y, int z);
 static void updateFrameBufferSizes(Display *display);
+static int drop_root_privileges(void);
 
 static int handle;       //make it local!!!
 static int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
@@ -71,21 +74,87 @@ static void insert_sort(int array[], uint8_t size)
 }
 #endif
 
-int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
-{
-    handle = spiOpen(0, 96000, 0);
-    if (handle < 0)
+#define _GNU_SOURCE // for secure_getenv()
+
+static int drop_root_privileges(void)
+{ // returns 0 on success and -1 on failure
+    gid_t gid;
+    uid_t uid;
+
+    // no need to "drop" the privileges that you don't have in the first place!
+    if (getuid() != 0)
     {
-        printf("Error opening SPI!\n");
-        return handle;
+        return 0;
     }
 
-    currentTouchState = STATE_CLICK_RELEASED;
-    fb_width = frameBufferWidth;
-    fb_height = frameBufferHeight;
+    // when your program is invoked with sudo, getuid() will return 0 and you
+    // won't be able to drop your privileges
+    if ((uid = getuid()) == 0)
+    {
+        const char *sudo_uid = secure_getenv("SUDO_UID");
+        if (sudo_uid == NULL)
+        {
+            printf("environment variable `SUDO_UID` not found\n");
+            return -1;
+        }
+        errno = 0;
+        uid = (uid_t)strtoll(sudo_uid, NULL, 10);
+        if (errno != 0)
+        {
+            perror("under-/over-flow in converting `SUDO_UID` to integer");
+            return -1;
+        }
+    }
 
-    fbToActualSizeRatioX = fb_width / display_getDisplayWidth();
-    fbToActualSizeRatioY = fb_height / display_getDisplayHeight();
+    // again, in case your program is invoked using sudo
+    if ((gid = getgid()) == 0)
+    {
+        const char *sudo_gid = secure_getenv("SUDO_GID");
+        if (sudo_gid == NULL)
+        {
+            printf("environment variable `SUDO_GID` not found\n");
+            return -1;
+        }
+        errno = 0;
+        gid = (gid_t)strtoll(sudo_gid, NULL, 10);
+        if (errno != 0)
+        {
+            perror("under-/over-flow in converting `SUDO_GID` to integer");
+            return -1;
+        }
+    }
+
+    if (setgid(gid) != 0)
+    {
+        perror("setgid");
+        return -1;
+    }
+    if (setuid(uid) != 0)
+    {
+        perror("setgid");
+        return -1;
+    }
+
+    // change your directory to somewhere else, just in case if you are in a
+    // root-owned one (e.g. /root)
+    if (chdir("/") != 0)
+    {
+        perror("chdir");
+        return -1;
+    }
+
+    // check if we successfully dropped the root privileges
+    if (setuid(0) == 0 || seteuid(0) == 0)
+    {
+        printf("could not drop root privileges!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static void trySettingAccessToXserver()
+{
 
     setenv("XAUTHORITY", DEFAULT_XAUTHORITY_VALUE, 0);
 
@@ -104,14 +173,70 @@ int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
     pid_t i = fork();
     if (i == 0)
     {
-        int sc = execlp("xhost", "xhost", "+SI:localuser:root", NULL);
-        printf("sc  = %d\n", sc);
-        exit(1);
-    }
-    // display = XOpenDisplay(0);
-    // Window root_window;
-    // root_window = XRootWindow(display, 0);
+        int dr = drop_root_privileges();
+        printf("drop = %d\n", dr);
 
+        while (1)
+        {
+            pid_t j = fork();
+            if (j == 0)
+            {
+                int sc = execlp("xhost", "xhost", "+SI:localuser:root", NULL);
+                exit(1);
+            }
+            else if (j < 0)
+            { //error
+                exit(j);
+            }
+            else
+            {
+                int wstatus = 1;
+                pid_t child = waitpid(j, &wstatus, 0);
+                if (child < 0)
+                {
+                    perror("wiat");
+                }
+                if (WIFEXITED(wstatus))
+                {
+                    printf("yap\n");
+                    int st = WEXITSTATUS(wstatus);
+
+                    printf("st = %d\n", st);
+                    if (st == 0)
+                    {
+                        printf("done\n");
+                        exit(0);
+                    }
+                }
+                else
+                {
+                    printf("nay\n");
+                }
+                sleep(1);
+            }
+        }
+    }
+
+    //TODO: fork needs waitforid??
+}
+
+int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
+{
+    handle = spiOpen(0, 96000, 0);
+    if (handle < 0)
+    {
+        printf("Error opening SPI!\n");
+        return handle;
+    }
+
+    currentTouchState = STATE_CLICK_RELEASED;
+    fb_width = frameBufferWidth;
+    fb_height = frameBufferHeight;
+
+    fbToActualSizeRatioX = fb_width / display_getDisplayWidth();
+    fbToActualSizeRatioY = fb_height / display_getDisplayHeight();
+
+    trySettingAccessToXserver();
     return 0;
 }
 
