@@ -82,8 +82,11 @@ int main(int argc, char **argv)
   }
 */
 
+  int fbWidth, fbHeight;
 
-  int st = touchScreen_initTouch();
+  frameBuffer_getActualFbDim(&fbWidth, &fbHeight);
+
+  int st = touchScreen_initTouch(fbWidth, fbHeight);
   setRotation(ROTATION_0_DEGREES);
 
 

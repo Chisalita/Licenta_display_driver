@@ -1,10 +1,13 @@
 #include "touchScreen.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <pigpio.h>
 #include <X11/Xlib.h>
+#include <X11/extensions/Xrandr.h>
 
 #include "ili9341Shield.h"
 #include "display.h" //TODO: remove when not needed
@@ -24,6 +27,9 @@
 #define TS_MAXY 935 //905
 #define TOUCH_PRESS_TRESHOLD (350)
 
+#define DEFUALUT_DISPLAY_NAME ":0.0"
+#define DEFAULT_XAUTHORITY_VALUE "~/.Xauthority"
+
 typedef enum {
     STATE_CLICK_RELEASED,
     STATE_CLICK_PRESSED
@@ -36,10 +42,17 @@ static void click(Display *display, int button);
 static void releaseClick(Display *display, int button);
 static void moveMouse(Display *display, int x, int y);
 static void processTouchState(int x, int y, int z);
+static void updateFrameBufferSizes(Display *display);
 
 static int handle;       //make it local!!!
 static int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
-// Display *display = NULL;
+static int fb_width = 0;
+static int fb_height = 0;
+static int fbToActualSizeRatioX = 0;
+static int fbToActualSizeRatioY = 0;
+static char *displayName = DEFUALUT_DISPLAY_NAME;
+
+Display *_display = NULL;
 touchState currentTouchState = STATE_CLICK_RELEASED;
 
 #if (NUMSAMPLES > 2)
@@ -58,7 +71,7 @@ static void insert_sort(int array[], uint8_t size)
 }
 #endif
 
-int touchScreen_initTouch()
+int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
 {
     handle = spiOpen(0, 96000, 0);
     if (handle < 0)
@@ -68,6 +81,33 @@ int touchScreen_initTouch()
     }
 
     currentTouchState = STATE_CLICK_RELEASED;
+    fb_width = frameBufferWidth;
+    fb_height = frameBufferHeight;
+
+    fbToActualSizeRatioX = fb_width / display_getDisplayWidth();
+    fbToActualSizeRatioY = fb_height / display_getDisplayHeight();
+
+    setenv("XAUTHORITY", DEFAULT_XAUTHORITY_VALUE, 0);
+
+    char *dName = getenv("DISPLAY");
+    if (dName)
+    {
+        printf("yes\n");
+        displayName = dName;
+    }
+    else
+    {
+        setenv("DISPLAY", DEFUALUT_DISPLAY_NAME, 0);
+    }
+    printf("DISPLAY=%s\n", displayName);
+
+    pid_t i = fork();
+    if (i == 0)
+    {
+        int sc = execlp("xhost", "xhost", "+SI:localuser:root", NULL);
+        printf("sc  = %d\n", sc);
+        exit(1);
+    }
     // display = XOpenDisplay(0);
     // Window root_window;
     // root_window = XRootWindow(display, 0);
@@ -77,6 +117,10 @@ int touchScreen_initTouch()
 
 int touchScreen_deinitTouch()
 {
+    if (_display)
+    {
+        XCloseDisplay(_display);
+    }
     return spiClose(handle);
 }
 
@@ -289,11 +333,14 @@ static void moveMouse(Display *display, int x, int y)
         return;
     }
 
+    int screenX = fbToActualSizeRatioX * x;
+    int screenY = fbToActualSizeRatioY * y;
+
     Window root_window;
     root_window = XRootWindow(display, 0);
 
     XSelectInput(display, root_window, KeyReleaseMask);
-    XWarpPointer(display, None, root_window, 0, 0, 0, 0, x, y);
+    XWarpPointer(display, None, root_window, 0, 0, 0, 0, screenX, screenY);
     XFlush(display); // Flushes the output buffer, therefore updates the cursor's position
 }
 
@@ -377,10 +424,37 @@ static void releaseClick(Display *display, int button)
     XFlush(display);
 }
 
+static void updateFrameBufferSizes(Display *display)
+{
+
+    if (display == NULL)
+    {
+        return;
+    }
+
+    Screen *screen = DefaultScreenOfDisplay(display);
+
+    int x = WidthOfScreen(screen);
+    int y = HeightOfScreen(screen);
+
+    fb_width = x;
+    fb_height = y;
+
+    fbToActualSizeRatioX = fb_width / display_getDisplayWidth();
+    fbToActualSizeRatioY = fb_height / display_getDisplayHeight();
+}
+
 static void processTouchState(int x, int y, int z)
 {
 
-    Display *display = XOpenDisplay(0);
+    if (_display == NULL)
+    {
+        // printf("try\n");
+        _display = XOpenDisplay(displayName);
+        updateFrameBufferSizes(_display);
+    }
+
+    printf("_display = %p\n", _display);
 
     // printf("z = %d\n", z);
     touchState newTouchState = (z >= TOUCH_PRESS_TRESHOLD) ? STATE_CLICK_PRESSED : STATE_CLICK_RELEASED;
@@ -390,19 +464,19 @@ static void processTouchState(int x, int y, int z)
     case STATE_CLICK_PRESSED:
         if (newTouchState == STATE_CLICK_PRESSED)
         {
-            moveMouse(display, x, y);
+            moveMouse(_display, x, y);
         }
         else
         {
-            releaseClick(display, Button1);
+            releaseClick(_display, Button1);
             printf("pressed -> released\n");
         }
         break;
     case STATE_CLICK_RELEASED:
         if (newTouchState == STATE_CLICK_PRESSED)
         {
-            moveMouse(display, x, y);
-            click(display, Button1);
+            moveMouse(_display, x, y);
+            click(_display, Button1);
             printf("released -> pressed\n");
         }
         break;

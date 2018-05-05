@@ -18,7 +18,7 @@ static uint16_t frameBuffer[TFT_WIDTH * TFT_HEIGHT];
 
 
 int display_drawFrameBuffer(){
-  getFrame(frameBuffer);
+  frameBuffer_getFrame(frameBuffer);
   ili9341Shield_setAddrWindow(0,0,_width, _height);
   pushColors(frameBuffer, (TFT_WIDTH * TFT_HEIGHT), true);
   return 0;
