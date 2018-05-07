@@ -23,10 +23,10 @@
 #define _xp (26)
 
 // Calibrate values
-#define TS_MINX 75  //125
-#define TS_MINY 280 //85
-#define TS_MAXX 650 //965
-#define TS_MAXY 935 //905
+#define TS_MINX 90  //75  //125
+#define TS_MINY 250 //280 //85
+#define TS_MAXX 600 //650 //965
+#define TS_MAXY 915 //935 //905
 #define TOUCH_PRESS_TRESHOLD (350)
 
 #define DEFUALUT_DISPLAY_NAME ":0.0"
@@ -74,8 +74,6 @@ static void insert_sort(int array[], uint8_t size)
 }
 #endif
 
-#define _GNU_SOURCE // for secure_getenv()
-
 static int drop_root_privileges(void)
 { // returns 0 on success and -1 on failure
     gid_t gid;
@@ -91,7 +89,7 @@ static int drop_root_privileges(void)
     // won't be able to drop your privileges
     if ((uid = getuid()) == 0)
     {
-        const char *sudo_uid = secure_getenv("SUDO_UID");
+        const char *sudo_uid = getenv("SUDO_UID");
         if (sudo_uid == NULL)
         {
             printf("environment variable `SUDO_UID` not found\n");
@@ -109,7 +107,7 @@ static int drop_root_privileges(void)
     // again, in case your program is invoked using sudo
     if ((gid = getgid()) == 0)
     {
-        const char *sudo_gid = secure_getenv("SUDO_GID");
+        const char *sudo_gid = getenv("SUDO_GID");
         if (sudo_gid == NULL)
         {
             printf("environment variable `SUDO_GID` not found\n");
@@ -182,6 +180,7 @@ static void trySettingAccessToXserver()
             if (j == 0)
             {
                 int sc = execlp("xhost", "xhost", "+SI:localuser:root", NULL);
+                printf("ERROR on execlp (%d)\n", sc);
                 exit(1);
             }
             else if (j < 0)
@@ -282,17 +281,15 @@ void touchScreen_getPoint(void)
 #endif
     x = (1023 - samples[NUMSAMPLES / 2]);
 
-    usleep(10000);
-
     gpioSetMode(_xp, PI_INPUT);
     gpioSetMode(_xm, PI_INPUT);
     gpioSetPullUpDown(_xp, PI_PUD_OFF);
     gpioSetPullUpDown(_xm, PI_PUD_OFF);
 
     gpioSetMode(_yp, PI_OUTPUT);
-    gpioWrite(_yp, PI_HIGH);
     gpioSetMode(_ym, PI_OUTPUT);
-    gpioWrite(_ym, PI_LOW); ////////TODO: remove if not working?
+    gpioWrite(_yp, PI_HIGH);
+    gpioWrite(_ym, PI_LOW);
 
     for (i = 0; i < NUMSAMPLES; i++)
     {
@@ -316,16 +313,11 @@ void touchScreen_getPoint(void)
     gpioWrite(_xp, PI_LOW);
 
     // Set Y- to VCC
-    gpioSetMode(_ym, PI_OUTPUT); //TODO: remove after tested
     gpioWrite(_ym, PI_HIGH);
 
-    // Hi-Z X- and Y+
-    gpioSetMode(_yp, PI_OUTPUT);
-    gpioWrite(_yp, PI_LOW);
-
+    // Hi-Z Y+
     gpioSetMode(_yp, PI_INPUT);
-
-    gpioSetPullUpDown(_yp, PI_PUD_OFF); //HiZ (not sure if good)
+    gpioSetPullUpDown(_yp, PI_PUD_OFF);
 
     ///////////////////////////
     int z1 = analogRead(_xm);
@@ -375,22 +367,21 @@ void touchScreen_getPoint(void)
         tsMiny = TS_MINX;
     }
 
+    /*if (z > TOUCH_PRESS_TRESHOLD)
+    {
+        printf("x = %d,y = %d,z = %d\n",x,y,z);
+
+    }*/
+
     long px = map(x, tsMinx, tsMaxx, 0, display_getDisplayWidth());
     long py = map(y, tsMiny, tsMaxy, 0, display_getDisplayHeight());
 
     // printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
 
-    int16_t pointWidth = 5;
-    int16_t pointHeight = 5;
-
-    //TODO: see what is needed
+    //restore gpio modes for next draw
     gpioSetMode(_yp, PI_OUTPUT);
     gpioSetMode(_xm, PI_OUTPUT);
-    gpioSetMode(_ym, PI_OUTPUT);
-    gpioSetMode(_xp, PI_OUTPUT);
     processTouchState(px, py, z);
-    // display_fillRect(px, py, pointWidth, pointHeight, GREEN);
-    // click(px, py, Button1);
 }
 
 static long map(long x, long in_min, long in_max, long out_min, long out_max)
@@ -412,6 +403,10 @@ static int readChannel(uint8_t channel)
     txBuf[0] = command;
     // printf("channel %d:\n", channel);
     int readBytes = spiXfer(handle, txBuf, rxBuf, commandLen);
+    if (readBytes < 0)
+    { //TODO:check also if read enough
+        printf("Error reading from SPI!\n");
+    }
     // printf("read %d bytes:\n", readBytes);
 
     for (int i = 0; i < commandLen; ++i)
@@ -477,13 +472,6 @@ static void click(Display *display, int button)
     {
         return;
     }
-    //     struct timespec ts;
-    // //  int milliseconds = 1;
-    //     // ts.tv_sec = milliseconds / 1000;
-    //     // ts.tv_nsec = (milliseconds % 1000) * 1000000;
-    //     ts.tv_sec = 0;
-    //     ts.tv_nsec = 1000;
-    //     nanosleep(&ts, NULL);
 
     // Create and setting up the event
     XEvent event;
@@ -505,18 +493,6 @@ static void click(Display *display, int button)
     if (XSendEvent(display, PointerWindow, True, ButtonPressMask, &event) == 0)
         fprintf(stderr, "Error to send the event!\n");
     XFlush(display);
-    /*   printf("YA\n");
-    // sleep(1);
-    printf("wow\n");
-    //  nanosleep(&ts, NULL);
-
-   // Release
-    event.type = ButtonRelease;
-    if (XSendEvent(display, PointerWindow, True, ButtonReleaseMask, &event) == 0)
-        fprintf(stderr, "Error to send the event!\n");
-    XFlush(display);
-    // sleep(1);
-    // nanosleep(&ts, NULL);*/
 }
 
 static void releaseClick(Display *display, int button)
@@ -574,12 +550,11 @@ static void processTouchState(int x, int y, int z)
 
     if (_display == NULL)
     {
-        // printf("try\n");
         _display = XOpenDisplay(displayName);
         updateFrameBufferSizes(_display);
     }
 
-    printf("_display = %p\n", _display);
+    // printf("_display = %p\n", _display);
 
     // printf("z = %d\n", z);
     touchState newTouchState = (z >= TOUCH_PRESS_TRESHOLD) ? STATE_CLICK_PRESSED : STATE_CLICK_RELEASED;

@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "array": "c",
+        "ili9341shield.h": "c",
+        "type_traits": "c",
+        "ratio": "c",
+        "random": "c",
+        "*.ipp": "c",
+        "future": "c",
+        "pigpio.h": "c",
+        "*.tcc": "c",
+        "display.h": "c"
+    }
+}

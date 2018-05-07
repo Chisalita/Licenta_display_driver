@@ -42,7 +42,6 @@
    WR_STROBE; }
 */
 
-
 void ili9341Shield_init();
 void ili9341Shield_write8(uint8_t value);
 void ili9341Shield_reset(void);
@@ -50,29 +49,28 @@ void ili9341Shield_writeNoParamCommand(uint8_t value);
 void ili9341Shield_writeRegister32(uint8_t r, uint32_t d);
 void ili9341Shield_setAddrWindow(int x1, int y1, int x2, int y2);
 
-
 // Set value of TFT register: 8-bit address, 8-bit value
 #define ili9341Shield_writeRegister8(a, d) \
-  {                          \
-    CD_COMMAND;              \
+  {                                        \
+    CD_COMMAND;                            \
     ili9341Shield_write8(a);               \
-    CD_DATA;                 \
+    CD_DATA;                               \
     ili9341Shield_write8(d);               \
   }
 
 // Set value of TFT register: 16-bit address, 16-bit value
 // See notes at top about macro expansion, hence hi & lo temp vars
 #define ili9341Shield_writeRegister16(a, d) \
-  {                           \
-    uint8_t hi, lo;           \
-    hi = (a) >> 8;            \
-    lo = (a);                 \
-    CD_COMMAND;               \
+  {                                         \
+    uint8_t hi, lo;                         \
+    hi = (a) >> 8;                          \
+    lo = (a);                               \
+    CD_COMMAND;                             \
     ili9341Shield_write8(hi);               \
     ili9341Shield_write8(lo);               \
-    hi = (d) >> 8;            \
-    lo = (d & 0xff);          \
-    CD_DATA;                  \
+    hi = (d) >> 8;                          \
+    lo = (d & 0xff);                        \
+    CD_DATA;                                \
     ili9341Shield_write8(hi);               \
     ili9341Shield_write8(lo);               \
   }

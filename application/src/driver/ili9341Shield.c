@@ -9,9 +9,6 @@
 
 static int _reset = RESET_PIN;
 
-
-
-
 void ili9341Shield_writeRegister32(uint8_t r, uint32_t d)
 {
     CS_ACTIVE;
@@ -80,7 +77,7 @@ void ili9341Shield_reset(void)
     CS_IDLE;
 }
 
-void ili9341Shield_write8(uint8_t value)
+__attribute__((always_inline)) inline void ili9341Shield_write8(uint8_t value)
 {
 
     //TODO: make generic the mask
