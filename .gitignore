@@ -1,5 +1,7 @@
 # Add any directories, files, or patterns you don't want to be tracked by version control
 /exploringBB
+/display_driver
+/display_driver_2
 /linux
 /tools
 /docs
