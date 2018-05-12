@@ -28,6 +28,17 @@ int main(int argc, char **argv)
   {
     return 1;
   }
+#if 0
+  int out = open("/home/pi/driver.out", O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+  if (out < 0)
+  {
+    printf("error opening out file\n");
+  }
+
+  if(dup2(out, 1) < 0){
+        printf("error dup2\n");
+  }
+#endif
   int i;
   ili9341Shield_init();
   printf("____________________________\n");

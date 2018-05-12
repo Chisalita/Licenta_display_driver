@@ -6,6 +6,7 @@
         "display.h": "c",
         "ili9341shield.h": "c",
         "framebuffer.h": "c",
-        "features.h": "c"
+        "features.h": "c",
+        "*.ipp": "c"
     }
 }

@@ -1,0 +1,14 @@
+[Unit]
+Description=The display driver for the ILI shield
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/bin/startIliDriver
+WorkingDirectory=/home/pi/
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target

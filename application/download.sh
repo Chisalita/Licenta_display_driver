@@ -2,4 +2,4 @@
 
 RPI_IP=192.168.2.201
 
-scp -r pi@$RPI_IP:~/licenta/application/* ./
+scp -r pi@raspberrypi.local:~/licenta/application/* ./
