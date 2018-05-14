@@ -7,6 +7,10 @@
         "ili9341shield.h": "c",
         "framebuffer.h": "c",
         "features.h": "c",
-        "*.ipp": "c"
+        "*.ipp": "c",
+        "typeinfo": "c",
+        "ratio": "c",
+        "system_error": "c",
+        "type_traits": "c"
     }
 }

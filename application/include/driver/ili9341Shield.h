@@ -12,12 +12,13 @@
 #define YELLOW 0xFFE0
 #define WHITE 0xFFFF
 
-#define RESET_PIN (13) //(26)
+#define RESET_PIN (13)
 #define RD_PIN (19)
 #define WR_PIN (2)
 #define CD_PIN (06)
 #define CS_PIN (05)
 #define DATA_PINS_OFFSET (20)
+#define DATA_PINS_MASK (((uint32_t)0xFF) << DATA_PINS_OFFSET)
 
 // These are single-instruction operations and always inline
 #define RD_ACTIVE gpioWrite(RD_PIN, 0)
@@ -36,18 +37,12 @@
     WR_IDLE;      \
   }
 
-/*
- #define ili9341Shield_write8inline(d) { \
-   (d & 0xff)<<DATA_PINS_OFFSET
-   WR_STROBE; }
-*/
-
-void ili9341Shield_init();
+void ili9341Shield_init(void);
 void ili9341Shield_write8(uint8_t value);
 void ili9341Shield_reset(void);
 void ili9341Shield_writeNoParamCommand(uint8_t value);
 void ili9341Shield_writeRegister32(uint8_t r, uint32_t d);
-void ili9341Shield_setAddrWindow(int x1, int y1, int x2, int y2);
+void ili9341Shield_setAddrWindow(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 
 // Set value of TFT register: 8-bit address, 8-bit value
 #define ili9341Shield_writeRegister8(a, d) \
@@ -59,7 +54,6 @@ void ili9341Shield_setAddrWindow(int x1, int y1, int x2, int y2);
   }
 
 // Set value of TFT register: 16-bit address, 16-bit value
-// See notes at top about macro expansion, hence hi & lo temp vars
 #define ili9341Shield_writeRegister16(a, d) \
   {                                         \
     uint8_t hi, lo;                         \

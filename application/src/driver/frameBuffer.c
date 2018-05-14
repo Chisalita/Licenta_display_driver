@@ -26,11 +26,13 @@ int frameBuffer_getActualFbDim(int *width, int *height)
     if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo))
     {
         printf("Unable to get display information\n");
+        close(fbfd);
         return -1;
     }
     if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo))
     {
         printf("Unable to get display information\n");
+        close(fbfd);
         return -1;
     }
 
@@ -39,27 +41,22 @@ int frameBuffer_getActualFbDim(int *width, int *height)
         (vinfo.bits_per_pixel != 32))
     {
         printf("only 16, 24 and 32 bits per pixels supported\n");
-        exit(EXIT_FAILURE);
+        // exit(EXIT_FAILURE);
+        close(fbfd);
+        return -1;
     }
 
     printf("resolution = %dx%d\n", vinfo.xres, vinfo.yres);
 
-    //printf("result = %d\n",ioctl (fbfd, FBIOPUT_VSCREENINFO, &vinfo));
-    /*
-    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo) == -1)
+    if (width != NULL)
     {
-        fprintf(stderr,
-                "reading framebuffer variable information - %s",
-                strerror(errno));
-        exit(EXIT_FAILURE);
+        *width = vinfo.width;
     }
-
-    printf("resolution = %dx%d\n", vinfo.xres, vinfo.yres);
-    */
-
-    *width = vinfo.width;
-    *height = vinfo.height;
-    close(fbfd); //TODO: close on errors too
+    if (height != NULL)
+    {
+        *height = vinfo.height;
+    }
+    close(fbfd);
     return 0;
 }
 
@@ -113,11 +110,11 @@ int frameBuffer_getFrame(void *outFrameBuff)
     {
         ret = vc_dispmanx_snapshot(display, screen_resource, 0);
         vc_dispmanx_resource_read_data(screen_resource, &rect1, /*fbp*/ outFrameBuff, 320 * 16 / 8); //vinfo.xres * vinfo.bits_per_pixel / 8);
-        usleep(25 * 1000);//TODO: process touch here?
+        usleep(25 * 1000);                                                                           //TODO: process touch here?
         break;
     }
 
-    ret = vc_dispmanx_resource_delete(screen_resource);
+    ret = vc_dispmanx_resource_delete(screen_resource); //TODO: do this on errors too
     vc_dispmanx_display_close(display);
     return 0;
 }

@@ -41,9 +41,10 @@ int main(int argc, char **argv)
 #endif
   int i;
   ili9341Shield_init();
+  setRotation(ROTATION_0_DEGREES);
+
   printf("____________________________\n");
 
-  display_drawBorder();
   for (i = 0; i < 150; i++)
   {
     display_drawPixel(i, i, BLACK);
@@ -83,20 +84,10 @@ int main(int argc, char **argv)
   {
     printf("Error at touchScreen_initTouch (%d)\n", st);
   }
-  setRotation(ROTATION_0_DEGREES);
 
   while (1)
   {
     display_drawFrameBuffer();
-    touchScreen_getPoint();
-  }
-
-  while (1)
-  {
-    usleep(1000 * 100);
-    printf("do\n");
-    /*readChannel(0);
-        readChannel(1);*/
     touchScreen_getPoint();
   }
 
