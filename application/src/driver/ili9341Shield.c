@@ -2,8 +2,11 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#ifdef USING_PIGPIO_LIB
 #include <pigpio.h>
-
+#else
+#include <bcm2835.h>
+#endif
 #include "registers.h"
 
 #define RESET_TIME_US (15)
@@ -54,9 +57,9 @@ void ili9341Shield_reset(void)
     WR_IDLE;
     RD_IDLE;
 
-    gpioWrite(RESET_PIN, 0);
+    GPIO_WRITE(RESET_PIN, 0);
     usleep(RESET_TIME_US);
-    gpioWrite(RESET_PIN, 1);
+    GPIO_WRITE(RESET_PIN, 1);
 
     // Data transfer sync
     CS_ACTIVE;
@@ -71,23 +74,23 @@ void ili9341Shield_reset(void)
 __attribute__((always_inline)) inline void ili9341Shield_write8(uint8_t value)
 {
     uint32_t data = ((uint32_t)value) << DATA_PINS_OFFSET;
-    gpioWrite_Bits_0_31_Set(data);
-    gpioWrite_Bits_0_31_Clear(data ^ DATA_PINS_MASK);
+    GPIO_SET_MULTI(data);
+    GPIO_CLEAR_MULTI(data ^ DATA_PINS_MASK);
     WR_STROBE;
 }
 
 void ili9341Shield_init(void)
 {
-    gpioSetMode(RESET_PIN, PI_OUTPUT);
-    gpioSetMode(RD_PIN, PI_OUTPUT);
-    gpioSetMode(WR_PIN, PI_OUTPUT);
-    gpioSetMode(CD_PIN, PI_OUTPUT);
-    gpioSetMode(CS_PIN, PI_OUTPUT);
+    GPIO_SET_MODE(RESET_PIN, GPIO_OUTPUT);
+    GPIO_SET_MODE(RD_PIN, GPIO_OUTPUT);
+    GPIO_SET_MODE(WR_PIN, GPIO_OUTPUT);
+    GPIO_SET_MODE(CD_PIN, GPIO_OUTPUT);
+    GPIO_SET_MODE(CS_PIN, GPIO_OUTPUT);
     //set data to output
     int i = DATA_PINS_OFFSET;
     for (; i < DATA_PINS_OFFSET + 8; ++i)
     {
-        gpioSetMode(i, PI_OUTPUT);
+        GPIO_SET_MODE(i, GPIO_OUTPUT);
     }
 
     ili9341Shield_write8(0x0); //just set data pins to 0

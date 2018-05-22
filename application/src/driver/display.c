@@ -1,5 +1,9 @@
 #include "display.h"
+#ifdef USING_PIGPIO_LIB
 #include <pigpio.h>
+#else
+#include <bcm2835.h>
+#endif
 #include "registers.h"
 #include "ili9341Shield.h"
 #include "frameBuffer.h"

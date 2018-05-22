@@ -1,5 +1,9 @@
 #include <stdio.h>
+#ifdef USING_PIGPIO_LIB
 #include <pigpio.h>
+#else
+#include <bcm2835.h>
+#endif
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
@@ -23,8 +27,13 @@
 int main(int argc, char **argv)
 {
 
-  int res = gpioInitialise();
+  int res = GPIO_INIT();
+
+#ifdef USING_PIGPIO_LIB
   if (res < 0)
+#else
+  if (!res)
+#endif
   {
     return 1;
   }
@@ -43,6 +52,12 @@ int main(int argc, char **argv)
   ili9341Shield_init();
   setRotation(ROTATION_0_DEGREES);
 
+  printf("____________________________\n");
+#ifdef USING_PIGPIO_LIB
+  printf("USING_PIGPIO_LIB\n");
+#else
+  printf("USING_BCM_LIB\n");
+#endif
   printf("____________________________\n");
 
   for (i = 0; i < 150; i++)

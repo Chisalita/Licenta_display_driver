@@ -11,6 +11,10 @@
         "typeinfo": "c",
         "ratio": "c",
         "system_error": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "touchscreen.h": "c",
+        "pigpio.h": "c",
+        "xrandr.h": "c",
+        "array": "c"
     }
 }

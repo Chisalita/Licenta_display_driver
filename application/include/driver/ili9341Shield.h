@@ -21,14 +21,14 @@
 #define DATA_PINS_MASK (((uint32_t)0xFF) << DATA_PINS_OFFSET)
 
 // These are single-instruction operations and always inline
-#define RD_ACTIVE gpioWrite(RD_PIN, 0)
-#define RD_IDLE gpioWrite(RD_PIN, 1)
-#define WR_ACTIVE gpioWrite(WR_PIN, 0)
-#define WR_IDLE gpioWrite(WR_PIN, 1)
-#define CD_COMMAND gpioWrite(CD_PIN, 0)
-#define CD_DATA gpioWrite(CD_PIN, 1)
-#define CS_ACTIVE gpioWrite(CS_PIN, 0)
-#define CS_IDLE gpioWrite(CS_PIN, 1)
+#define RD_ACTIVE GPIO_WRITE(RD_PIN, 0)
+#define RD_IDLE GPIO_WRITE(RD_PIN, 1)
+#define WR_ACTIVE GPIO_WRITE(WR_PIN, 0)
+#define WR_IDLE GPIO_WRITE(WR_PIN, 1)
+#define CD_COMMAND GPIO_WRITE(CD_PIN, 0)
+#define CD_DATA GPIO_WRITE(CD_PIN, 1)
+#define CS_ACTIVE GPIO_WRITE(CS_PIN, 0)
+#define CS_IDLE GPIO_WRITE(CS_PIN, 1)
 
 // Data write strobe, ~2 instructions and always inline
 #define WR_STROBE \

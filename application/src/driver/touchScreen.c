@@ -7,7 +7,11 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <sys/wait.h>
+#ifdef USING_PIGPIO_LIB
 #include <pigpio.h>
+#else
+#include <bcm2835.h>
+#endif
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 
@@ -32,7 +36,8 @@
 #define DEFUALUT_DISPLAY_NAME ":0.0"
 #define DEFAULT_XAUTHORITY_VALUE "~/.Xauthority"
 
-typedef enum {
+typedef enum
+{
     STATE_CLICK_RELEASED,
     STATE_CLICK_PRESSED
 } touchState;
@@ -221,12 +226,28 @@ static void trySettingAccessToXserver()
 
 int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
 {
+
+#ifdef USING_PIGPIO_LIB
     handle = spiOpen(0, 96000, 0);
     if (handle < 0)
     {
         printf("Error opening SPI!\n");
         return handle;
     }
+#else
+    handle = bcm2835_spi_begin();
+    if (!handle)
+    {
+        printf("Error opening SPI!\n");
+        return handle;
+    }
+
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_65536); // The default
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
+#endif
 
     currentTouchState = STATE_CLICK_RELEASED;
     fb_width = frameBufferWidth;
@@ -245,7 +266,13 @@ int touchScreen_deinitTouch()
     {
         XCloseDisplay(_display);
     }
+
+#ifdef USING_PIGPIO_LIB
     return spiClose(handle);
+#else
+    bcm2835_spi_end();
+    return !bcm2835_close();
+#endif
 }
 
 void touchScreen_getPoint(void)
@@ -256,15 +283,15 @@ void touchScreen_getPoint(void)
 
     valid = 1;
 
-    gpioSetMode(_yp, PI_INPUT);
-    gpioSetMode(_ym, PI_INPUT);
-    gpioSetPullUpDown(_yp, PI_PUD_OFF);
-    gpioSetPullUpDown(_ym, PI_PUD_OFF);
+    GPIO_SET_MODE(_yp, GPIO_INPUT);
+    GPIO_SET_MODE(_ym, GPIO_INPUT);
+    GPIO_SET_PUD(_yp, GPIO_PUD_OFF);
+    GPIO_SET_PUD(_ym, GPIO_PUD_OFF);
 
-    gpioSetMode(_xp, PI_OUTPUT);
-    gpioSetMode(_xm, PI_OUTPUT);
-    gpioWrite(_xp, PI_HIGH);
-    gpioWrite(_xm, PI_LOW);
+    GPIO_SET_MODE(_xp, GPIO_OUTPUT);
+    GPIO_SET_MODE(_xm, GPIO_OUTPUT);
+    GPIO_WRITE(_xp, GPIO_HIGH);
+    GPIO_WRITE(_xm, GPIO_LOW);
 
     for (i = 0; i < NUMSAMPLES; i++)
     {
@@ -281,15 +308,15 @@ void touchScreen_getPoint(void)
 #endif
     x = (1023 - samples[NUMSAMPLES / 2]);
 
-    gpioSetMode(_xp, PI_INPUT);
-    gpioSetMode(_xm, PI_INPUT);
-    gpioSetPullUpDown(_xp, PI_PUD_OFF);
-    gpioSetPullUpDown(_xm, PI_PUD_OFF);
+    GPIO_SET_MODE(_xp, GPIO_INPUT);
+    GPIO_SET_MODE(_xm, GPIO_INPUT);
+    GPIO_SET_PUD(_xp, GPIO_PUD_OFF);
+    GPIO_SET_PUD(_xm, GPIO_PUD_OFF);
 
-    gpioSetMode(_yp, PI_OUTPUT);
-    gpioSetMode(_ym, PI_OUTPUT);
-    gpioWrite(_yp, PI_HIGH);
-    gpioWrite(_ym, PI_LOW);
+    GPIO_SET_MODE(_yp, GPIO_OUTPUT);
+    GPIO_SET_MODE(_ym, GPIO_OUTPUT);
+    GPIO_WRITE(_yp, GPIO_HIGH);
+    GPIO_WRITE(_ym, GPIO_LOW);
 
     for (i = 0; i < NUMSAMPLES; i++)
     {
@@ -309,15 +336,15 @@ void touchScreen_getPoint(void)
     y = (1023 - samples[NUMSAMPLES / 2]);
 
     // Set X+ to ground
-    gpioSetMode(_xp, PI_OUTPUT);
-    gpioWrite(_xp, PI_LOW);
+    GPIO_SET_MODE(_xp, GPIO_OUTPUT);
+    GPIO_WRITE(_xp, GPIO_LOW);
 
     // Set Y- to VCC
-    gpioWrite(_ym, PI_HIGH);
+    GPIO_WRITE(_ym, GPIO_HIGH);
 
     // Hi-Z Y+
-    gpioSetMode(_yp, PI_INPUT);
-    gpioSetPullUpDown(_yp, PI_PUD_OFF);
+    GPIO_SET_MODE(_yp, GPIO_INPUT);
+    GPIO_SET_PUD(_yp, GPIO_PUD_OFF);
 
     ///////////////////////////
     int z1 = analogRead(_xm);
@@ -379,8 +406,8 @@ void touchScreen_getPoint(void)
     // printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
 
     //restore gpio modes for next draw
-    gpioSetMode(_yp, PI_OUTPUT);
-    gpioSetMode(_xm, PI_OUTPUT);
+    GPIO_SET_MODE(_yp, GPIO_OUTPUT);
+    GPIO_SET_MODE(_xm, GPIO_OUTPUT);
     processTouchState(px, py, z);
 }
 
@@ -402,11 +429,17 @@ static int readChannel(uint8_t channel)
 
     txBuf[0] = command;
     // printf("channel %d:\n", channel);
+
+#ifdef USING_PIGPIO_LIB
     int readBytes = spiXfer(handle, txBuf, rxBuf, commandLen);
     if (readBytes < 0)
     { //TODO:check also if read enough
         printf("Error reading from SPI!\n");
     }
+#else
+    bcm2835_spi_transfernb(txBuf, rxBuf, commandLen);
+#endif
+
     // printf("read %d bytes:\n", readBytes);
 
     for (int i = 0; i < commandLen; ++i)
