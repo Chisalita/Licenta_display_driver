@@ -7,8 +7,13 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#include <unistd.h>
 
+#ifndef NO_FRAME_BUFFER
 #include <bcm_host.h>
+#endif
+
+static uint16_t fbp[320 * 240];
 
 int frameBuffer_getActualFbDim(int *width, int *height)
 {
@@ -60,9 +65,20 @@ int frameBuffer_getActualFbDim(int *width, int *height)
     return 0;
 }
 
+void frameBuffer_drawPixel(uint16_t x, uint16_t y, uint16_t color)
+{
+    fbp[(y * 320) + x] = color;
+}
+
 //TODO: optimize by makeing it continuous (not just one frame)
 int frameBuffer_getFrame(void *outFrameBuff)
 {
+
+#ifdef NO_FRAME_BUFFER
+    memcpy(outFrameBuff, fbp, sizeof(fbp));
+    return 0;
+#else
+
     DISPMANX_DISPLAY_HANDLE_T display;
     DISPMANX_MODEINFO_T display_info;
     DISPMANX_RESOURCE_HANDLE_T screen_resource;
@@ -94,16 +110,7 @@ int frameBuffer_getFrame(void *outFrameBuff)
         return -1;
     }
 
-    unsigned char fbp[320 * 240 * 2];
-    memset(fbp, 0, sizeof(fbp));
-
-    if (fbp <= 0)
-    {
-        printf("Unable to create mamory mapping");
-        ret = vc_dispmanx_resource_delete(screen_resource);
-        vc_dispmanx_display_close(display);
-        return -1;
-    }
+    memset(fbp, 0, sizeof(fbp)); //TODO:remove?
 
     vc_dispmanx_rect_set(&rect1, 0, 0, 320, 240); //TODO: get screen size
     while (1)
@@ -117,4 +124,5 @@ int frameBuffer_getFrame(void *outFrameBuff)
     ret = vc_dispmanx_resource_delete(screen_resource); //TODO: do this on errors too
     vc_dispmanx_display_close(display);
     return 0;
+#endif
 }

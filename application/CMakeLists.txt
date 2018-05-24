@@ -50,16 +50,30 @@ file(GLOB_RECURSE SOURCES "src/driver/*.c")
 file(GLOB_RECURSE SOURCES "src/*.c")
 
 
+
+#SET(MANUAL_DRAW YES)
+
+if(MANUAL_DRAW STREQUAL YES)
+
+add_definitions(-DNO_FRAME_BUFFER)
+SET(BCM_LIB)
+
+else(MANUAL_DRAW)
+
+SET(BCM_LIB bcm_host)
 #headers for the frame buffer 
 include_directories(/opt/vc/include)
 include_directories(/opt/vc/include/interface/vcos/pthreads)
 include_directories(/opt/vc/include/interface/vmcs_host)
 include_directories(/opt/vc/include/interface/vmcs_host/linux)
-
 link_directories(/opt/vc/lib)
+
+endif(MANUAL_DRAW)
+
+
 
 project (${APPLICATION_NAME})
 add_executable(${APPLICATION_NAME} ${SOURCES})
 
 #needed libraries
-target_link_libraries(${APPLICATION_NAME} pthread ${GPIO_LIB} bcm_host X11 Xrandr )
+target_link_libraries(${APPLICATION_NAME} pthread ${GPIO_LIB} ${BCM_LIB} X11 Xrandr )
