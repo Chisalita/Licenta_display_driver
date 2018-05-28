@@ -58,7 +58,7 @@ if(MANUAL_DRAW STREQUAL YES)
 add_definitions(-DNO_FRAME_BUFFER)
 SET(BCM_LIB)
 
-else(MANUAL_DRAW)
+else(MANUAL_DRAW STREQUAL YES)
 
 SET(BCM_LIB bcm_host)
 #headers for the frame buffer 
@@ -68,7 +68,7 @@ include_directories(/opt/vc/include/interface/vmcs_host)
 include_directories(/opt/vc/include/interface/vmcs_host/linux)
 link_directories(/opt/vc/lib)
 
-endif(MANUAL_DRAW)
+endif(MANUAL_DRAW STREQUAL YES)
 
 
 

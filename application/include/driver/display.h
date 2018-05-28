@@ -9,6 +9,7 @@ typedef enum {
   ROTATION_270_DEGREES
 } rotation_t;
 
+int display_drawFrameBufferOptimised(void);
 int display_drawFrameBuffer(void);
 void display_drawPixel(uint16_t x, uint16_t y, uint16_t color);
 void display_fillRect(int16_t x1, int16_t y1, int16_t w, int16_t h, uint16_t fillcolor);

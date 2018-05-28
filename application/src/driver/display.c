@@ -8,11 +8,16 @@
 #include "ili9341Shield.h"
 #include "frameBuffer.h"
 
+#include <stdio.h>
+
 #define TFT_WIDTH (240)
 #define TFT_HEIGHT (320)
+#define NO_OF_FRAME_BUFFERS (2)
 
 static void flood(uint16_t color, uint32_t len);
 static void pushColors(uint16_t *data, uint32_t len);
+static uint16_t getStartLineToDraw(void);
+static uint16_t getEndLineToDraw(uint16_t lastLine);
 #if 0
 static uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 #endif
@@ -20,14 +25,90 @@ static uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 static rotation_t _rotation = ROTATION_0_DEGREES;
 static int _width = TFT_HEIGHT; //TODO: use uint16_t?
 static int _height = TFT_WIDTH;
-static uint16_t frameBuffer[TFT_WIDTH * TFT_HEIGHT];
+static uint16_t frameBuffer[NO_OF_FRAME_BUFFERS][TFT_WIDTH * TFT_HEIGHT] = {{0}, {0}}; //TODO: alligne data?
 
 int display_drawFrameBuffer(void)
 {
-    frameBuffer_getFrame(frameBuffer);
+    frameBuffer_getFrame(&frameBuffer[0][0]);
     ili9341Shield_setAddrWindow(0, 0, _width, _height);
-    pushColors(frameBuffer, (TFT_WIDTH * TFT_HEIGHT));
+    pushColors(&frameBuffer[0][0], (TFT_WIDTH * TFT_HEIGHT));
     return 0;
+}
+
+int display_drawFrameBufferOptimised(void)
+{
+
+    static int frameBufferIndex = 0;
+
+    int status = frameBuffer_getFrame(&frameBuffer[frameBufferIndex][0]);
+
+    if(status){
+        //some error occured while getting the frame
+        return status;
+    }
+
+    uint16_t startLine = getStartLineToDraw();
+    uint16_t endLine = getEndLineToDraw(startLine);
+
+    if (startLine >= endLine)
+    {
+        //nothing to update
+        return 0;
+    }
+
+    ili9341Shield_setAddrWindow(0, startLine, _width, endLine);
+    pushColors(&frameBuffer[frameBufferIndex][startLine * _width], (endLine - startLine) * _width);
+    frameBufferIndex++;
+    frameBufferIndex %= NO_OF_FRAME_BUFFERS;
+    return 0;
+}
+
+static uint16_t getEndLineToDraw(uint16_t lastLine)
+{
+    unsigned int *startPos = (unsigned int *)&(frameBuffer[0][_width * _height]);
+    unsigned int *data1 = startPos;
+    unsigned int *data2 = (unsigned int *)&(frameBuffer[1][_width * _height]);
+    unsigned int const *lastToCheck = (unsigned int *)&(frameBuffer[0][_width * lastLine]);
+
+    data1--;
+    data2--;
+    lastToCheck--;
+
+    for (; data1 > lastToCheck; --data1, --data2)
+    {
+        if (*data1 != *data2)
+        {
+            uint32_t line = (startPos - data1) * sizeof(unsigned int); //number of bytes
+            line /= sizeof(uint16_t);                                                                                 //number of pixels
+            line /= _width;                                                                                           //number of lines
+            line = _height - line;
+            return (uint16_t)line;
+        }
+    }
+
+    return lastLine; // everything was the same
+}
+
+static uint16_t getStartLineToDraw(void)
+{
+    unsigned int *data1 = (unsigned int *)&(frameBuffer[0][0]);
+    unsigned int *data2 = (unsigned int *)&(frameBuffer[1][0]);
+
+    unsigned int const *lastToCheck = (unsigned int *)&(frameBuffer[0][_width * (_height / 2)]);
+
+    for (; data1 < lastToCheck; ++data1, ++data2)
+    {
+
+        if (*data1 != *data2)
+        {
+            uint32_t line = ((data1 - ((unsigned int *)&(frameBuffer[0][0]))) * sizeof(unsigned int)); //number of bytes
+            line /= sizeof(uint16_t);                                                                  //number of pixels
+            line /= _width;                                                                            //number of lines
+            return (uint16_t)line;
+        }
+    }
+
+    return _height / 2;
 }
 
 rotation_t display_getDisplayRotation(void)

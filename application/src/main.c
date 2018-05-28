@@ -50,6 +50,7 @@ int main(int argc, char **argv)
 #endif
   ili9341Shield_init();
   setRotation(ROTATION_0_DEGREES);
+  frameBuffer_initFrameBuffer();
 
   printf("____________________________\n");
 #ifdef USING_PIGPIO_LIB
@@ -104,10 +105,13 @@ int main(int argc, char **argv)
 
   while (1)
   {
-    display_drawFrameBuffer();
+    display_drawFrameBufferOptimised();
+    // display_drawFrameBuffer();
+    // usleep(25 * 1000);
     touchScreen_getPoint();
   }
 
+  frameBuffer_deinitFrameBuffer();
   touchScreen_deinitTouch();
 
   return 0;

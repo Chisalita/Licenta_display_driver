@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/build/application",
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
-            "miDebuggerServerAddress": "192.168.2.201:1995",
+            "miDebuggerServerAddress": "raspberrypi.local:1995",
             "miDebuggerPath": "/usr/bin/gdb-multiarch",
             "setupCommands": [
                 {
