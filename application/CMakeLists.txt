@@ -1,7 +1,7 @@
 
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required(VERSION 2.8)
 
-SET(APPLICATION_NAME application)
+SET(APPLICATION_NAME iliDriver)
 
 SET(GPIO_LIBRARY BCM)
 
@@ -77,3 +77,7 @@ add_executable(${APPLICATION_NAME} ${SOURCES})
 
 #needed libraries
 target_link_libraries(${APPLICATION_NAME} pthread ${GPIO_LIB} ${BCM_LIB} X11 Xrandr )
+
+
+install(TARGETS ${APPLICATION_NAME} DESTINATION /usr/bin)
+install(CODE "execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/install.sh ${CMAKE_CURRENT_SOURCE_DIR})")

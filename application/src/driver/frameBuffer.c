@@ -15,12 +15,18 @@
 static DISPMANX_DISPLAY_HANDLE_T display = NULL;
 static DISPMANX_RESOURCE_HANDLE_T screen_resource = NULL;
 static VC_RECT_T rect1;
+#else
+#include <stdlib.h>
+
+static uint16_t *fbp = NULL;
 #endif
 
-static uint16_t fbp[320 * 240];
+static uint16_t frameBufferWidth, frameBufferHeight;
 
-int frameBuffer_initFrameBuffer()
+int frameBuffer_initFrameBuffer(uint16_t width, uint16_t height)
 {
+    frameBufferWidth = width;
+    frameBufferHeight = height;
 
 #ifndef NO_FRAME_BUFFER
     DISPMANX_MODEINFO_T display_info;
@@ -32,43 +38,54 @@ int frameBuffer_initFrameBuffer()
     display = vc_dispmanx_display_open(0);
     if (!display)
     {
-        printf("Unable to open primary display");
+        printf("Unable to open primary display\n");
         return -1;
     }
     ret = vc_dispmanx_display_get_info(display, &display_info);
     if (ret)
     {
-        printf("Unable to get primary display information");
+        printf("Unable to get primary display information\n");
         frameBuffer_deinitFrameBuffer();
         return -1;
     }
-    // printf("Primary display is %d x %d", display_info.width, display_info.height);
 
-    screen_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, 320, 240, &image_prt); //TODO: get screen size
+    screen_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, frameBufferWidth, frameBufferHeight, &image_prt);
     if (!screen_resource)
     {
-        printf("Unable to create screen buffer");
+        printf("Unable to create screen buffer\n");
         frameBuffer_deinitFrameBuffer();
         return -1;
     }
 
-    ret = vc_dispmanx_rect_set(&rect1, 0, 0, 320, 240); //TODO: get screen size
+    ret = vc_dispmanx_rect_set(&rect1, 0, 0, frameBufferWidth, frameBufferHeight);
     if (ret)
     {
         frameBuffer_deinitFrameBuffer();
         return ret;
     }
 
+#else
+    fbp = malloc(sizeof(uint16_t) * frameBufferWidth * frameBufferHeight);
+    if (!fbp)
+    {
+        return -1;
+    }
+    memset(fbp, 0, sizeof(uint16_t) * frameBufferWidth * frameBufferHeight);
 #endif
 
-    memset(fbp, 0, sizeof(fbp));
     return 0;
 }
 
-int frameBuffer_deinitFrameBuffer()
+int frameBuffer_deinitFrameBuffer(void)
 {
 
-#ifndef NO_FRAME_BUFFER
+#ifdef NO_FRAME_BUFFER
+    if (fbp)
+    {
+        free(fbp);
+        fbp = NULL;
+    }
+#else
     if (screen_resource)
     {
         vc_dispmanx_resource_delete(screen_resource);
@@ -114,7 +131,6 @@ int frameBuffer_getActualFbDim(int *width, int *height)
         (vinfo.bits_per_pixel != 32))
     {
         printf("only 16, 24 and 32 bits per pixels supported\n");
-        // exit(EXIT_FAILURE);
         close(fbfd);
         return -1;
     }
@@ -135,14 +151,16 @@ int frameBuffer_getActualFbDim(int *width, int *height)
 
 void frameBuffer_drawPixel(uint16_t x, uint16_t y, uint16_t color)
 {
-    fbp[(y * 320) + x] = color;
+#ifdef NO_FRAME_BUFFER
+    fbp[(y * frameBufferWidth) + x] = color;
+#endif
 }
 
 int frameBuffer_getFrame(void *outFrameBuff)
 {
 
 #ifdef NO_FRAME_BUFFER
-    memcpy(outFrameBuff, fbp, sizeof(fbp));
+    memcpy(outFrameBuff, fbp, sizeof(uint16_t) * frameBufferWidth * frameBufferHeight);
     return 0;
 #else
 
@@ -152,15 +170,12 @@ int frameBuffer_getFrame(void *outFrameBuff)
         return ret;
     }
 
-    ret = vc_dispmanx_resource_read_data(screen_resource, &rect1, /*fbp*/ outFrameBuff, 320 * 16 / 8); //vinfo.xres * vinfo.bits_per_pixel / 8);
+    ret = vc_dispmanx_resource_read_data(screen_resource, &rect1, outFrameBuff, frameBufferWidth * sizeof(uint16_t));
     if (ret)
     {
         return ret;
     }
 
-
-    // usleep(25 * 1000); //TODO: process touch here?
-    
     return 0;
 #endif
 }

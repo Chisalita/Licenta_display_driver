@@ -16,7 +16,7 @@
 #include <X11/extensions/Xrandr.h>
 
 #include "ili9341Shield.h"
-#include "display.h" //TODO: remove when not needed
+#include "display.h"
 
 #define REFERENCE_VOLTAGE (3.3f)
 #define NUMSAMPLES (1)
@@ -34,7 +34,6 @@
 #define TOUCH_PRESS_TRESHOLD (350)
 
 #define DEFUALUT_DISPLAY_NAME ":0.0"
-#define DEFAULT_XAUTHORITY_VALUE "~/.Xauthority"
 
 typedef enum
 {
@@ -52,8 +51,8 @@ static void processTouchState(int x, int y, int z);
 static void updateFrameBufferSizes(Display *display);
 static int drop_root_privileges(void);
 
-static int handle;       //make it local!!!
-static int _rxplate = 0; //300; //WHAT IS THIS? (resistenta cred)
+static int handle;
+static int _rxplate = 0; //300;
 static int fb_width = 0;
 static int fb_height = 0;
 static int fbToActualSizeRatioX = 0;
@@ -156,28 +155,27 @@ static int drop_root_privileges(void)
     return 0;
 }
 
-static void trySettingAccessToXserver()
+static void trySettingAccessToXserver(void)
 {
-
-    setenv("XAUTHORITY", DEFAULT_XAUTHORITY_VALUE, 0);
 
     char *dName = getenv("DISPLAY");
     if (dName)
     {
-        printf("yes\n");
         displayName = dName;
     }
     else
     {
         setenv("DISPLAY", DEFUALUT_DISPLAY_NAME, 0);
     }
-    printf("DISPLAY=%s\n", displayName);
 
     pid_t i = fork();
     if (i == 0)
     {
         int dr = drop_root_privileges();
-        printf("drop = %d\n", dr);
+        if (dr < 0)
+        {
+            exit(dr);
+        }
 
         while (1)
         {
@@ -194,34 +192,33 @@ static void trySettingAccessToXserver()
             }
             else
             {
-                int wstatus = 1;
+                int wstatus = 0;
                 pid_t child = waitpid(j, &wstatus, 0);
                 if (child < 0)
                 {
-                    perror("wiat");
+                    perror("waitpid");
+                    exit(1);
                 }
                 if (WIFEXITED(wstatus))
                 {
-                    printf("yap\n");
+
                     int st = WEXITSTATUS(wstatus);
 
-                    printf("st = %d\n", st);
                     if (st == 0)
                     {
-                        printf("done\n");
+                        // the command executed successfully just exit now
                         exit(0);
                     }
                 }
-                else
-                {
-                    printf("nay\n");
-                }
+
                 sleep(1);
             }
         }
     }
-
-    //TODO: fork needs waitforid??
+    else if (i < 0)
+    {
+        perror("Error forking ");
+    }
 }
 
 int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
@@ -260,7 +257,7 @@ int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
     return 0;
 }
 
-int touchScreen_deinitTouch()
+int touchScreen_deinitTouch(void)
 {
     if (_display)
     {
@@ -373,9 +370,6 @@ void touchScreen_getPoint(void)
         z = 0;
     }
 
-    // printf("Normal: x = %d, y = %d, z = %d\n", x, y, z);
-    // printf("Inverted: x = %d, y = %d, z = %d\n", x, 1023 - y, z);
-
     int tsMaxx = TS_MAXX;
     int tsMaxy = TS_MAXY;
     int tsMinx = TS_MINX;
@@ -383,7 +377,6 @@ void touchScreen_getPoint(void)
 
     if (display_getDisplayRotation() == ROTATION_0_DEGREES || display_getDisplayRotation() == ROTATION_180_DEGREES)
     {
-        //TODO: make common case faster
         int aux = x;
         x = y;
         y = aux;
@@ -394,16 +387,8 @@ void touchScreen_getPoint(void)
         tsMiny = TS_MINX;
     }
 
-    /*if (z > TOUCH_PRESS_TRESHOLD)
-    {
-        printf("x = %d,y = %d,z = %d\n",x,y,z);
-
-    }*/
-
     long px = map(x, tsMinx, tsMaxx, 0, display_getDisplayWidth());
     long py = map(y, tsMiny, tsMaxy, 0, display_getDisplayHeight());
-
-    // printf("Maped Inverted: x = %ld, y = %ld, z = %d\n", px, py, z);
 
     //restore gpio modes for next draw
     GPIO_SET_MODE(_yp, GPIO_OUTPUT);
@@ -428,31 +413,21 @@ static int readChannel(uint8_t channel)
     memset(rxBuf, 0, commandLen);
 
     txBuf[0] = command;
-    // printf("channel %d:\n", channel);
 
 #ifdef USING_PIGPIO_LIB
     int readBytes = spiXfer(handle, txBuf, rxBuf, commandLen);
     if (readBytes < 0)
-    { //TODO:check also if read enough
+    {
         printf("Error reading from SPI!\n");
     }
 #else
     bcm2835_spi_transfernb(txBuf, rxBuf, commandLen);
 #endif
 
-    // printf("read %d bytes:\n", readBytes);
-
-    for (int i = 0; i < commandLen; ++i)
-    {
-        // printf("0x%X ", rxBuf[i]);
-    }
-    // printf("\n");
-
     uint16_t result = (rxBuf[0] & 0x01) << 9;
     result |= (rxBuf[1] & 0xFF) << 1;
     result |= (rxBuf[2] & 0x80) >> 7;
     result &= 0x3FF;
-    // printf("value = %d(%fV)\n", result, (REFERENCE_VOLTAGE * (float)result) / 1024.f);
     return result;
 }
 
@@ -524,7 +499,9 @@ static void click(Display *display, int button)
     // Press
     event.type = ButtonPress;
     if (XSendEvent(display, PointerWindow, True, ButtonPressMask, &event) == 0)
+    {
         fprintf(stderr, "Error to send the event!\n");
+    }
     XFlush(display);
 }
 
@@ -554,7 +531,9 @@ static void releaseClick(Display *display, int button)
     // Release
     event.type = ButtonRelease;
     if (XSendEvent(display, PointerWindow, True, ButtonReleaseMask, &event) == 0)
+    {
         fprintf(stderr, "Error to send the event!\n");
+    }
     XFlush(display);
 }
 
@@ -587,9 +566,6 @@ static void processTouchState(int x, int y, int z)
         updateFrameBufferSizes(_display);
     }
 
-    // printf("_display = %p\n", _display);
-
-    // printf("z = %d\n", z);
     touchState newTouchState = (z >= TOUCH_PRESS_TRESHOLD) ? STATE_CLICK_PRESSED : STATE_CLICK_RELEASED;
 
     switch (currentTouchState)

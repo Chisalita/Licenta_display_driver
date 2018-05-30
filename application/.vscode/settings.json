@@ -15,6 +15,13 @@
         "touchscreen.h": "c",
         "pigpio.h": "c",
         "xrandr.h": "c",
-        "array": "c"
+        "array": "c",
+        "functional": "c",
+        "tuple": "c",
+        "utility": "c",
+        "istream": "c",
+        "slist": "c",
+        "initializer_list": "c",
+        "string_view": "c"
     }
 }

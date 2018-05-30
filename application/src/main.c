@@ -21,7 +21,7 @@
 #include "registers.h"
 #include "ili9341Shield.h"
 #include "touchScreen.h"
-#include "display.h" //TODO: remove when not needed
+#include "display.h"
 #include "frameBuffer.h"
 
 int main(int argc, char **argv)
@@ -50,8 +50,6 @@ int main(int argc, char **argv)
 #endif
   ili9341Shield_init();
   setRotation(ROTATION_0_DEGREES);
-  frameBuffer_initFrameBuffer();
-
   printf("____________________________\n");
 #ifdef USING_PIGPIO_LIB
   printf("USING_PIGPIO_LIB\n");
@@ -60,42 +58,18 @@ int main(int argc, char **argv)
 #endif
   printf("____________________________\n");
 
-
-  display_fillRect(50, 50, 50, 50, GREEN);
-
-  /*
-    struct timeval start, end;
-
-    long mtime, seconds, useconds;
-
-    gettimeofday(&start, NULL);
-
-    //pushColors(data, sizeof(data) / 2, true);
-    // display_displayOff();
-    display_fillRect(0, 0, _width, _height, color);
-    //ili9341Shield_writeRegister8(ILI9341_DISPLAYON, 0);
-
-    // displayOn();
-    //usleep(1E6);
-    gettimeofday(&end, NULL);
-    seconds = end.tv_sec - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime = ((seconds)*1000 + useconds / 1000.0) + 0.5;
-
-    printf("Elapsed time: %ld milliseconds\n", mtime);
- */
-
+  frameBuffer_initFrameBuffer(display_getDisplayWidth(), display_getDisplayHeight());
+  
   int fbWidth, fbHeight;
-
   frameBuffer_getActualFbDim(&fbWidth, &fbHeight);
-
   int st = touchScreen_initTouch(fbWidth, fbHeight);
   if (st)
   {
     printf("Error at touchScreen_initTouch (%d)\n", st);
   }
 
+
+  //TODO: remove this
   for(int i=0; i<100; i++){
     frameBuffer_drawPixel(i, i, GREEN);
     frameBuffer_drawPixel(30, i, YELLOW);
@@ -103,10 +77,11 @@ int main(int argc, char **argv)
   }
 
 
+  //clear the screen
+  display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
   while (1)
   {
     display_drawFrameBufferOptimised();
-    // display_drawFrameBuffer();
     // usleep(25 * 1000);
     touchScreen_getPoint();
   }
