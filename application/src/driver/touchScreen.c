@@ -55,8 +55,8 @@ static int handle;
 static int _rxplate = 0; //300;
 static int fb_width = 0;
 static int fb_height = 0;
-static int fbToActualSizeRatioX = 0;
-static int fbToActualSizeRatioY = 0;
+static float fbToActualSizeRatioX = 0;
+static float fbToActualSizeRatioY = 0;
 static char *displayName = DEFUALUT_DISPLAY_NAME;
 
 Display *_display = NULL;
@@ -250,8 +250,8 @@ int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
     fb_width = frameBufferWidth;
     fb_height = frameBufferHeight;
 
-    fbToActualSizeRatioX = fb_width / display_getDisplayWidth();
-    fbToActualSizeRatioY = fb_height / display_getDisplayHeight();
+    fbToActualSizeRatioX = (float) fb_width / (float) display_getDisplayWidth();
+    fbToActualSizeRatioY = (float) fb_height / (float) display_getDisplayHeight();
 
     trySettingAccessToXserver();
     return 0;
@@ -553,8 +553,8 @@ static void updateFrameBufferSizes(Display *display)
     fb_width = x;
     fb_height = y;
 
-    fbToActualSizeRatioX = fb_width / display_getDisplayWidth();
-    fbToActualSizeRatioY = fb_height / display_getDisplayHeight();
+    fbToActualSizeRatioX = (float) fb_width / (float) display_getDisplayWidth();
+    fbToActualSizeRatioY = (float) fb_height / (float) display_getDisplayHeight();
 }
 
 static void processTouchState(int x, int y, int z)
