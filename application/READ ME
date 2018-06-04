@@ -1,0 +1,9 @@
+instructions:
+cd application
+
+mkdir build
+cd build
+cmake .
+make
+
+sudo ./iliDriver

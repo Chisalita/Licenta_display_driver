@@ -152,6 +152,12 @@ int frameBuffer_getActualFbDim(int *width, int *height)
 void frameBuffer_drawPixel(uint16_t x, uint16_t y, uint16_t color)
 {
 #ifdef NO_FRAME_BUFFER
+
+    if ((y > frameBufferHeight) || (y < 0) || (x > frameBufferWidth) || (x < 0))
+    {
+        return;
+    }
+
     fbp[(y * frameBufferWidth) + x] = color;
 #endif
 }

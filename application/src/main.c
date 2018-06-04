@@ -69,6 +69,7 @@ int main(int argc, char **argv)
   }
 
 
+  display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
   //TODO: remove this
   for(int i=0; i<100; i++){
     frameBuffer_drawPixel(i, i, GREEN);
@@ -78,7 +79,6 @@ int main(int argc, char **argv)
 
 
   //clear the screen
-  display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
   while (1)
   {
     display_drawFrameBufferOptimised();

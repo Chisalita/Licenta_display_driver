@@ -31,6 +31,13 @@
 #define TS_MINY 250 //280 //85
 #define TS_MAXX 600 //650 //965
 #define TS_MAXY 915 //935 //905
+
+/* R&D
+#define TS_MINX 51  //125
+#define TS_MINY 200 //85
+#define TS_MAXX 650 //965
+#define TS_MAXY 880 //905
+*/
 #define TOUCH_PRESS_TRESHOLD (350)
 
 #define DEFUALUT_DISPLAY_NAME ":0.0"
@@ -330,8 +337,12 @@ void touchScreen_getPoint(void)
     }
 #endif
 
+    
+    #ifdef INVERTED_Y
+    y = samples[NUMSAMPLES / 2];
+    #else
     y = (1023 - samples[NUMSAMPLES / 2]);
-
+    #endif
     // Set X+ to ground
     GPIO_SET_MODE(_xp, GPIO_OUTPUT);
     GPIO_WRITE(_xp, GPIO_LOW);
