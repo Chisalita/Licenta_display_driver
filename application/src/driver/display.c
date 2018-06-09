@@ -25,7 +25,7 @@ static uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 static rotation_t _rotation = ROTATION_0_DEGREES;
 static int _width = TFT_HEIGHT; //TODO: use uint16_t?
 static int _height = TFT_WIDTH;
-static uint16_t frameBuffer[NO_OF_FRAME_BUFFERS][TFT_WIDTH * TFT_HEIGHT] = {{0}, {0}}; //TODO: alligne data?
+static uint16_t __attribute__((aligned(32))) frameBuffer[NO_OF_FRAME_BUFFERS][TFT_WIDTH * TFT_HEIGHT] = {{0}, {0}};
 
 int display_drawFrameBuffer(void)
 {
@@ -203,7 +203,7 @@ static void flood(uint16_t color, uint32_t len)
         // High and low bytes are identical.  Leave prior data
         // on the port(s) and just toggle the write strobe.
         while (blocks--)
-        {           //TODO: check if this loop unroling helps
+        {
             i = 16; // 64 pixels/block / 4 pixels/pass
             do
             {
@@ -275,10 +275,10 @@ static void pushColors(uint16_t *data, uint32_t len)
     CD_DATA;
     while (len--)
     {
-        color = *data++;          //TODO: delete comments?
-        hi = color >> 8;          // Don't simplify or merge these
-        lo = color;               // lines, there's macro shenanigans
-        ili9341Shield_write8(hi); // going on.
+        color = *data++;          
+        hi = color >> 8;
+        lo = color;
+        ili9341Shield_write8(hi); 
         ili9341Shield_write8(lo);
     }
     CS_IDLE;
@@ -316,8 +316,7 @@ void setRotation(rotation_t rotation)
     CS_ACTIVE;
     ili9341Shield_writeRegister8(ILI9341_MADCTL, t);
     // init default full-screen address window:
-    ili9341Shield_setAddrWindow(0, 0, _width - 1, _height - 1); // CS_IDLE happens here
-    // TODO: refactor and take out the CS_ACTIVE and CS_IDLE out of functions
+    ili9341Shield_setAddrWindow(0, 0, _width - 1, _height - 1); 
 }
 
 void display_displayOff(void)

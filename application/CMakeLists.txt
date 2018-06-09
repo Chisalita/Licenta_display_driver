@@ -39,7 +39,8 @@ add_definitions(-DGPIO_PUD_OFF=PI_PUD_OFF)
 
 endif(GPIO_LIBRARY STREQUAL BCM)
 
-SET(CMAKE_C_FLAGS  "-Wall -g")
+#SET(CMAKE_C_FLAGS  "-Wall -g")
+SET(CMAKE_C_FLAGS  "-Wall -O3")
 SET(CMAKE_C_STANDARD 99)
 
 #my header files

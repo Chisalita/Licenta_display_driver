@@ -59,7 +59,7 @@ int main(int argc, char **argv)
   printf("____________________________\n");
 
   frameBuffer_initFrameBuffer(display_getDisplayWidth(), display_getDisplayHeight());
-  
+
   int fbWidth, fbHeight;
   frameBuffer_getActualFbDim(&fbWidth, &fbHeight);
   int st = touchScreen_initTouch(fbWidth, fbHeight);
@@ -68,20 +68,24 @@ int main(int argc, char **argv)
     printf("Error at touchScreen_initTouch (%d)\n", st);
   }
 
-
   display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
   //TODO: remove this
-  for(int i=0; i<100; i++){
+  for (int i = 0; i < 100; i++)
+  {
     frameBuffer_drawPixel(i, i, GREEN);
     frameBuffer_drawPixel(30, i, YELLOW);
     frameBuffer_drawPixel(i, 100, BLUE);
   }
 
-
+  // int measure_pin = 16;
+  // GPIO_SET_MODE(measure_pin, GPIO_OUTPUT);
   //clear the screen
   while (1)
   {
+    // GPIO_WRITE(measure_pin,HIGH);
     display_drawFrameBufferOptimised();
+    // GPIO_WRITE(measure_pin,LOW);
+
     // usleep(25 * 1000);
     touchScreen_getPoint();
   }
