@@ -109,7 +109,7 @@ static uint16_t getStartLineToDraw(void)
         }
     }
 
-    return _height / 2;
+    return _height;
 }
 
 rotation_t display_getDisplayRotation(void)
