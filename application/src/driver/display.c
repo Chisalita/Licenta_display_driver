@@ -42,7 +42,8 @@ int display_drawFrameBufferOptimised(void)
 
     int status = frameBuffer_getFrame(&frameBuffer[frameBufferIndex][0]);
 
-    if(status){
+    if (status)
+    {
         //some error occured while getting the frame
         return status;
     }
@@ -79,8 +80,8 @@ static uint16_t getEndLineToDraw(uint16_t lastLine)
         if (*data1 != *data2)
         {
             uint32_t line = (startPos - data1) * sizeof(unsigned int); //number of bytes
-            line /= sizeof(uint16_t);                                                                                 //number of pixels
-            line /= _width;                                                                                           //number of lines
+            line /= sizeof(uint16_t);                                  //number of pixels
+            line /= _width;                                            //number of lines
             line = _height - line;
             return (uint16_t)line;
         }
@@ -94,7 +95,7 @@ static uint16_t getStartLineToDraw(void)
     unsigned int *data1 = (unsigned int *)&(frameBuffer[0][0]);
     unsigned int *data2 = (unsigned int *)&(frameBuffer[1][0]);
 
-    unsigned int const *lastToCheck = (unsigned int *)&(frameBuffer[0][_width * (_height / 2)]);
+    unsigned int const *lastToCheck = (unsigned int *)&(frameBuffer[1][0]);
 
     for (; data1 < lastToCheck; ++data1, ++data2)
     {
@@ -275,10 +276,10 @@ static void pushColors(uint16_t *data, uint32_t len)
     CD_DATA;
     while (len--)
     {
-        color = *data++;          
+        color = *data++;
         hi = color >> 8;
         lo = color;
-        ili9341Shield_write8(hi); 
+        ili9341Shield_write8(hi);
         ili9341Shield_write8(lo);
     }
     CS_IDLE;
@@ -286,7 +287,7 @@ static void pushColors(uint16_t *data, uint32_t len)
 
 void setRotation(rotation_t rotation)
 {
-    uint16_t t;
+    uint16_t t = ILI9341_MADCTL_MY | ILI9341_MADCTL_BGR;
     _rotation = rotation;
 
     switch (rotation)
@@ -316,7 +317,7 @@ void setRotation(rotation_t rotation)
     CS_ACTIVE;
     ili9341Shield_writeRegister8(ILI9341_MADCTL, t);
     // init default full-screen address window:
-    ili9341Shield_setAddrWindow(0, 0, _width - 1, _height - 1); 
+    ili9341Shield_setAddrWindow(0, 0, _width - 1, _height - 1);
 }
 
 void display_displayOff(void)
