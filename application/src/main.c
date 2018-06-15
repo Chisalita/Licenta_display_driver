@@ -24,6 +24,9 @@
 #include "display.h"
 #include "frameBuffer.h"
 
+#define DESIRED_FRAME_RATE (30)
+#define MIN_DELAY_BETWEEN_FRAMES_MS (1000 / DESIRED_FRAME_RATE)
+
 int main(int argc, char **argv)
 {
 
@@ -68,26 +71,37 @@ int main(int argc, char **argv)
     printf("Error at touchScreen_initTouch (%d)\n", st);
   }
 
-  display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
-  //TODO: remove this
-  for (int i = 0; i < 100; i++)
-  {
-    frameBuffer_drawPixel(i, i, GREEN);
-    frameBuffer_drawPixel(30, i, YELLOW);
-    frameBuffer_drawPixel(i, 100, BLUE);
-  }
-
   // int measure_pin = 16;
   // GPIO_SET_MODE(measure_pin, GPIO_OUTPUT);
   //clear the screen
+  display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
+
+  struct timeval start, end;
+  long mtime, seconds, useconds;
   while (1)
   {
+
+    gettimeofday(&start, NULL);
+
     // GPIO_WRITE(measure_pin,HIGH);
     display_drawFrameBufferOptimised();
     // GPIO_WRITE(measure_pin,LOW);
 
-    // usleep(25 * 1000);
     touchScreen_getPoint();
+
+    gettimeofday(&end, NULL);
+    seconds = end.tv_sec - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+    if (useconds < 0)
+    {
+      useconds = 1E6 - useconds;
+    }
+
+    long toSleep = (MIN_DELAY_BETWEEN_FRAMES_MS * 1000) - useconds;
+    if (toSleep > 0)
+    {
+      usleep(toSleep);
+    }
   }
 
   frameBuffer_deinitFrameBuffer();
