@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
 
   struct timeval start, end;
-  long mtime, seconds, useconds;
+  long useconds;
   while (1)
   {
 
@@ -90,12 +90,12 @@ int main(int argc, char **argv)
     touchScreen_getPoint();
 
     gettimeofday(&end, NULL);
-    seconds = end.tv_sec - start.tv_sec;
     useconds = end.tv_usec - start.tv_usec;
     if (useconds < 0)
     {
       useconds = 1E6 - useconds;
     }
+    printf("useconds = %ld\n", useconds);
 
     long toSleep = (MIN_DELAY_BETWEEN_FRAMES_MS * 1000) - useconds;
     if (toSleep > 0)

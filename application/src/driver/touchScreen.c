@@ -28,9 +28,9 @@
 
 // Calibrate values
 #define TS_MINX 90  //75  //125
-#define TS_MINY 250 //280 //85
+#define TS_MINY 280 //280 //85
 #define TS_MAXX 600 //650 //965
-#define TS_MAXY 915 //935 //905
+#define TS_MAXY 935 //935 //905
 
 /* R&D
 #define TS_MINX 51  //125
@@ -38,7 +38,7 @@
 #define TS_MAXX 650 //965
 #define TS_MAXY 880 //905
 */
-#define TOUCH_PRESS_TRESHOLD (350)
+#define TOUCH_PRESS_TRESHOLD (400)
 
 #define DEFUALUT_DISPLAY_NAME ":0.0"
 
@@ -248,7 +248,7 @@ int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
 
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_65536); // The default
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64); // The default
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
 #endif
@@ -444,6 +444,7 @@ static int readChannel(uint8_t channel)
 
 static int analogRead(int c)
 {
+    // return 1024;
 
     switch (c)
     {
