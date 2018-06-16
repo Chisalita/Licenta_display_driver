@@ -26,12 +26,6 @@
 #define _ym (27)
 #define _xp (26)
 
-/*// Calibrate values
-#define TS_MINX 90  //75  //125
-#define TS_MINY 250 //280 //85
-#define TS_MAXX 600 //650 //965
-#define TS_MAXY 915 //935 //905
-*/
 // Calibrate values
 #define TS_MINX 110
 #define TS_MINY 220
@@ -403,10 +397,6 @@ void touchScreen_getPoint(void)
         tsMiny = TS_MINX;
     }
 
-
-    //  long px = map(x, (long) (0.99 * (float)(tsMinx)), (long) (1.01 * (float)(tsMaxx)), 0, fb_width);
-    // long py = map(y, (long) (0.99 * (float)(tsMiny)), (long) (1.01 * (float)(tsMaxy)), 0, fb_height);
-
     long px = map(x, tsMinx, tsMaxx, 0, fb_width);
     long py = map(y, tsMiny, tsMaxy, 0, fb_height);
 
@@ -481,13 +471,21 @@ static void moveMouse(Display *display, int x, int y)
         return;
     }
 
-    if ((x < 0) || (x > fb_width) ||
-        (y < 0) || (y > fb_height))
+    if (x < 0)
     {
-        printf("nooooo!\n");
-        printf("screenX =%d\n", x);
-        printf("screenY =%d\n", y);
-        return;
+        x = 0;
+    }
+    if (x > fb_width)
+    {
+        x = fb_width;
+    }
+    if (y < 0)
+    {
+        y = 0;
+    }
+    if (y > fb_height)
+    {
+        y = fb_height;
     }
 
     Window root_window;
@@ -607,7 +605,6 @@ static void processTouchState(int x, int y, int z)
         else
         {
             releaseClick(_display, Button1);
-            printf("pressed -> released\n");
         }
         break;
     case STATE_CLICK_RELEASED:
@@ -615,7 +612,6 @@ static void processTouchState(int x, int y, int z)
         {
             moveMouse(_display, x, y);
             click(_display, Button1);
-            printf("released -> pressed\n");
         }
         break;
     }

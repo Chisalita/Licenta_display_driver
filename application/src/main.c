@@ -95,7 +95,6 @@ int main(int argc, char **argv)
     {
       useconds = 1E6 - useconds;
     }
-    // printf("useconds = %ld\n", useconds);
 
     long toSleep = (MIN_DELAY_BETWEEN_FRAMES_MS * 1000) - useconds;
     if (toSleep > 0)
