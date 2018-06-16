@@ -26,11 +26,17 @@
 #define _ym (27)
 #define _xp (26)
 
-// Calibrate values
+/*// Calibrate values
 #define TS_MINX 90  //75  //125
-#define TS_MINY 280 //280 //85
+#define TS_MINY 250 //280 //85
 #define TS_MAXX 600 //650 //965
-#define TS_MAXY 935 //935 //905
+#define TS_MAXY 915 //935 //905
+*/
+// Calibrate values
+#define TS_MINX 110
+#define TS_MINY 220
+#define TS_MAXX 625
+#define TS_MAXY 930
 
 /* R&D
 #define TS_MINX 51  //125
@@ -38,7 +44,7 @@
 #define TS_MAXX 650 //965
 #define TS_MAXY 880 //905
 */
-#define TOUCH_PRESS_TRESHOLD (400)
+#define TOUCH_PRESS_TRESHOLD (230) //(300)
 
 #define DEFUALUT_DISPLAY_NAME ":0.0"
 
@@ -246,19 +252,19 @@ int touchScreen_initTouch(int frameBufferWidth, int frameBufferHeight)
         return handle;
     }
 
-    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);      // The default
-    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64); // The default
-    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
-    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);   // The default
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                // The default
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64); // 6.250MHz
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                   // The default
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);   // the default
 #endif
 
     currentTouchState = STATE_CLICK_RELEASED;
     fb_width = frameBufferWidth;
     fb_height = frameBufferHeight;
 
-    fbToActualSizeRatioX = (float) fb_width / (float) display_getDisplayWidth();
-    fbToActualSizeRatioY = (float) fb_height / (float) display_getDisplayHeight();
+    fbToActualSizeRatioX = (float)fb_width / (float)display_getDisplayWidth();
+    fbToActualSizeRatioY = (float)fb_height / (float)display_getDisplayHeight();
 
     trySettingAccessToXserver();
     return 0;
@@ -337,12 +343,11 @@ void touchScreen_getPoint(void)
     }
 #endif
 
-    
-    #ifdef INVERTED_Y
+#ifdef INVERTED_Y
     y = samples[NUMSAMPLES / 2];
-    #else
+#else
     y = (1023 - samples[NUMSAMPLES / 2]);
-    #endif
+#endif
     // Set X+ to ground
     GPIO_SET_MODE(_xp, GPIO_OUTPUT);
     GPIO_WRITE(_xp, GPIO_LOW);
@@ -398,8 +403,13 @@ void touchScreen_getPoint(void)
         tsMiny = TS_MINX;
     }
 
-    long px = map(x, tsMinx, tsMaxx, 0, display_getDisplayWidth());
-    long py = map(y, tsMiny, tsMaxy, 0, display_getDisplayHeight());
+    // printf("x=%d, y=%d, z=%d\n", x,y,z);
+
+    //  long px = map(x, (long) (0.99 * (float)(tsMinx)), (long) (1.01 * (float)(tsMaxx)), 0, fb_width);
+    // long py = map(y, (long) (0.99 * (float)(tsMiny)), (long) (1.01 * (float)(tsMaxy)), 0, fb_height);
+
+    long px = map(x, tsMinx, tsMaxx, 0, fb_width);
+    long py = map(y, tsMiny, tsMaxy, 0, fb_height);
 
     //restore gpio modes for next draw
     GPIO_SET_MODE(_yp, GPIO_OUTPUT);
@@ -444,7 +454,6 @@ static int readChannel(uint8_t channel)
 
 static int analogRead(int c)
 {
-    // return 1024;
 
     switch (c)
     {
@@ -473,14 +482,20 @@ static void moveMouse(Display *display, int x, int y)
         return;
     }
 
-    int screenX = fbToActualSizeRatioX * x;
-    int screenY = fbToActualSizeRatioY * y;
+    if ((x < 0) || (x > fb_width) ||
+        (y < 0) || (y > fb_height))
+    {
+        printf("nooooo!\n");
+        printf("screenX =%d\n", x);
+        printf("screenY =%d\n", y);
+        return;
+    }
 
     Window root_window;
     root_window = XRootWindow(display, 0);
 
     XSelectInput(display, root_window, KeyReleaseMask);
-    XWarpPointer(display, None, root_window, 0, 0, 0, 0, screenX, screenY);
+    XWarpPointer(display, None, root_window, 0, 0, 0, 0, x, y);
     XFlush(display); // Flushes the output buffer, therefore updates the cursor's position
 }
 
@@ -565,8 +580,8 @@ static void updateFrameBufferSizes(Display *display)
     fb_width = x;
     fb_height = y;
 
-    fbToActualSizeRatioX = (float) fb_width / (float) display_getDisplayWidth();
-    fbToActualSizeRatioY = (float) fb_height / (float) display_getDisplayHeight();
+    fbToActualSizeRatioX = (float)fb_width / (float)display_getDisplayWidth();
+    fbToActualSizeRatioY = (float)fb_height / (float)display_getDisplayHeight();
 }
 
 static void processTouchState(int x, int y, int z)
@@ -575,7 +590,10 @@ static void processTouchState(int x, int y, int z)
     if (_display == NULL)
     {
         _display = XOpenDisplay(displayName);
-        updateFrameBufferSizes(_display);
+        if (_display)
+        {
+            updateFrameBufferSizes(_display);
+        }
     }
 
     touchState newTouchState = (z >= TOUCH_PRESS_TRESHOLD) ? STATE_CLICK_PRESSED : STATE_CLICK_RELEASED;
