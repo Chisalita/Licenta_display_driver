@@ -403,7 +403,6 @@ void touchScreen_getPoint(void)
         tsMiny = TS_MINX;
     }
 
-    // printf("x=%d, y=%d, z=%d\n", x,y,z);
 
     //  long px = map(x, (long) (0.99 * (float)(tsMinx)), (long) (1.01 * (float)(tsMaxx)), 0, fb_width);
     // long py = map(y, (long) (0.99 * (float)(tsMiny)), (long) (1.01 * (float)(tsMaxy)), 0, fb_height);
