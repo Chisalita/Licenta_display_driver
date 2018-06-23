@@ -1,10 +1,7 @@
 #/bin/bash
 
-#Thanks to Adafruit!
-
 WIDTH=480
 HEIGHT=360
-
 
 # Given a filename, a regex pattern to match and a replacement string,
 # perform replacement if found, else append replacement to end of file.

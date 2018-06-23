@@ -39,7 +39,6 @@ add_definitions(-DGPIO_PUD_OFF=PI_PUD_OFF)
 
 endif(GPIO_LIBRARY STREQUAL BCM)
 
-#SET(CMAKE_C_FLAGS  "-Wall -g")
 SET(CMAKE_C_FLAGS  "-Wall -O3")
 SET(CMAKE_C_STANDARD 99)
 
@@ -49,8 +48,6 @@ include_directories("include/driver/")
 #source files for the project
 file(GLOB_RECURSE SOURCES "src/driver/*.c")
 file(GLOB_RECURSE SOURCES "src/*.c")
-
-
 
 #SET(MANUAL_DRAW YES)
 

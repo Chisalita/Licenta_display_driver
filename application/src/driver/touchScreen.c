@@ -32,13 +32,7 @@
 #define TS_MAXX 625
 #define TS_MAXY 930
 
-/* R&D
-#define TS_MINX 51  //125
-#define TS_MINY 200 //85
-#define TS_MAXX 650 //965
-#define TS_MAXY 880 //905
-*/
-#define TOUCH_PRESS_TRESHOLD (230) //(300)
+#define TOUCH_PRESS_TRESHOLD (230)
 
 #define DEFUALUT_DISPLAY_NAME ":0.0"
 
@@ -59,7 +53,7 @@ static void updateFrameBufferSizes(Display *display);
 static int drop_root_privileges(void);
 
 static int handle;
-static int _rxplate = 0; //300;
+static int _rxplate = 0;
 static int fb_width = 0;
 static int fb_height = 0;
 static float fbToActualSizeRatioX = 0;
@@ -353,7 +347,6 @@ void touchScreen_getPoint(void)
     GPIO_SET_MODE(_yp, GPIO_INPUT);
     GPIO_SET_PUD(_yp, GPIO_PUD_OFF);
 
-    ///////////////////////////
     int z1 = analogRead(_xm);
     int z2 = analogRead(_yp);
 

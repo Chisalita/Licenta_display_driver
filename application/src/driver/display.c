@@ -23,7 +23,7 @@ static uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
 #endif
 
 static rotation_t _rotation = ROTATION_0_DEGREES;
-static int _width = TFT_HEIGHT; //TODO: use uint16_t?
+static int _width = TFT_HEIGHT; 
 static int _height = TFT_WIDTH;
 static uint16_t __attribute__((aligned(32))) frameBuffer[NO_OF_FRAME_BUFFERS][TFT_WIDTH * TFT_HEIGHT] = {{0}, {0}};
 

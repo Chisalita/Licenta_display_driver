@@ -53,14 +53,6 @@ int main(int argc, char **argv)
 #endif
   ili9341Shield_init();
   setRotation(ROTATION_0_DEGREES);
-  printf("____________________________\n");
-#ifdef USING_PIGPIO_LIB
-  printf("USING_PIGPIO_LIB\n");
-#else
-  printf("USING_BCM_LIB\n");
-#endif
-  printf("____________________________\n");
-
   frameBuffer_initFrameBuffer(display_getDisplayWidth(), display_getDisplayHeight());
 
   int fbWidth, fbHeight;
@@ -71,8 +63,6 @@ int main(int argc, char **argv)
     printf("Error at touchScreen_initTouch (%d)\n", st);
   }
 
-  // int measure_pin = 16;
-  // GPIO_SET_MODE(measure_pin, GPIO_OUTPUT);
   //clear the screen
   display_fillRect(0, 0, display_getDisplayWidth(), display_getDisplayHeight(), BLACK);
 
@@ -82,11 +72,8 @@ int main(int argc, char **argv)
   {
 
     gettimeofday(&start, NULL);
-
-    // GPIO_WRITE(measure_pin,HIGH);
+    
     display_drawFrameBufferOptimised();
-    // GPIO_WRITE(measure_pin,LOW);
-
     touchScreen_getPoint();
 
     gettimeofday(&end, NULL);

@@ -135,8 +135,6 @@ int frameBuffer_getActualFbDim(int *width, int *height)
         return -1;
     }
 
-    printf("resolution = %dx%d\n", vinfo.xres, vinfo.yres);
-
     if (width != NULL)
     {
         *width = vinfo.width;

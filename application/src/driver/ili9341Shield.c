@@ -96,7 +96,6 @@ void ili9341Shield_init(void)
     ili9341Shield_write8(0x0); //just set data pins to 0
 
     ili9341Shield_reset();
-    printf("reset\n");
 
     CS_ACTIVE;
     ili9341Shield_writeRegister8(ILI9341_SOFTRESET, 0);
@@ -106,9 +105,9 @@ void ili9341Shield_init(void)
     ili9341Shield_writeRegister8(ILI9341_POWERCONTROL2, 0x10);
     ili9341Shield_writeRegister16(ILI9341_VCOMCONTROL1, 0x2B2B);
     ili9341Shield_writeRegister8(ILI9341_VCOMCONTROL2, 0xC0);
-    ili9341Shield_writeRegister8(ILI9341_MADCTL, /*ILI9341_MADCTL_MY |*/ ILI9341_MADCTL_BGR); //here also do rotation
+    ili9341Shield_writeRegister8(ILI9341_MADCTL, ILI9341_MADCTL_BGR); 
     ili9341Shield_writeRegister8(ILI9341_PIXELFORMAT, 0x55);
-    ili9341Shield_writeRegister16(ILI9341_FRAMECONTROL, 0x001B); //TODO: play with this?
+    ili9341Shield_writeRegister16(ILI9341_FRAMECONTROL, 0x001B);
 
     ili9341Shield_writeRegister8(ILI9341_ENTRYMODE, 0x07);
     ili9341Shield_writeNoParamCommand(ILI9341_SLEEPOUT);
